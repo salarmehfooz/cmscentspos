@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Artisanal house formulation fragrances in stock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Numeric identifier" },
+        "name": { "type": "string", "description": "Fragrance name" },
+        "cat": { "type": "string", "description": "Category EDP/EDT etc" },
+        "size": { "type": "string", "description": "Volume size, e.g. 50ml" },
+        "icon": { "type": "string", "description": "Emoji representing the product" },
+        "cost": { "type": "number", "description": "Manufacture cost in PKR" },
+        "price": { "type": "number", "description": "Regular retail price in PKR" },
+        "discountPrice": { "type": "number", "description": "Discount retail price in PKR" },
+        "stock": { "type": "number", "description": "Current inventory stock level" }
+      },
+      "required": ["id", "name", "price", "stock"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Operating overheads and business expenditure",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Numeric identifier" },
+        "date": { "type": "string", "description": "Date of transaction" },
+        "desc": { "type": "string", "description": "Purpose details" },
+        "cat": { "type": "string", "description": "Operating category" },
+        "amt": { "type": "number", "description": "PKR amount spent" }
+      },
+      "required": ["id", "date", "desc", "cat", "amt"]
+    },
+    "InvoiceItem": {
+      "title": "InvoiceItem",
+      "description": "Individual fragrance items inside an invoice",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "qty": { "type": "number" },
+        "icon": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "qty"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Invoiced customer transaction receipt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Invoice number" },
+        "date": { "type": "string", "description": "Date string" },
+        "customer": { "type": "string", "description": "Client name" },
+        "phone": { "type": "string", "description": "Client contact" },
+        "items": { "type": "array", "items": { "$ref": "InvoiceItem" } },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "tax": { "type": "number" },
+        "total": { "type": "number" },
+        "cogs": { "type": "number", "description": "Aggregate cost of goods sold" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date", "items", "total", "cogs"]
+    },
+    "Config": {
+      "title": "Config",
+      "description": "System-wide auto-increment counters and settings",
+      "type": "object",
+      "properties": {
+        "nextInv": { "type": "number" },
+        "nextProd": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Active POS fragrance inventory"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Operating overhead transactions"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Customer order invoices"
+    },
+    "/config/counters": {
+      "schema": "Config",
+      "description": "Global ID increment keys"
+    }
+  }
+}

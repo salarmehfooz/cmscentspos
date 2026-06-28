@@ -1,0 +1,6 @@
+{
+  "name": "C.M Scents POS",
+  "description": "A point of sale (POS) system with inventory tracking, real-time sales reporting, invoice history, and profit & loss analysis for C.M Scents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
