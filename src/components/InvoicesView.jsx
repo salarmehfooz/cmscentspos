@@ -12,7 +12,11 @@ import {
   Trash2,
 } from "lucide-react";
 
-export default function InvoicesView({ invoices, onDeleteInvoice }) {
+export default function InvoicesView({
+  invoices,
+  onDeleteInvoice,
+  products = [],
+}) {
   const [search, setSearch] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState("All");
@@ -446,10 +450,10 @@ export default function InvoicesView({ invoices, onDeleteInvoice }) {
                       Premium Fragrances &amp; Accents
                     </p>
                     <p className="text-[10px] text-neutral-500 mt-1">
-                      Shop #4, Zamzama Luxury Arcade, Phase 5, DHA, Karachi
+                      Isra Village, Hala Naka, Hyderabad, Sindh, Pakistan
                     </p>
                     <p className="text-[10px] text-neutral-400 font-bold mt-0.5">
-                      Phone: +92 300 8251234 · www.cmscents.com
+                      Phone: +92 333 3641997 · www.cmscents.com
                     </p>
                   </div>
 
@@ -517,10 +521,16 @@ export default function InvoicesView({ invoices, onDeleteInvoice }) {
                     </div>
                     <div className="space-y-2.5">
                       {selectedInvoice.items.map((item) => {
+                        const dbProduct = products.find(
+                          (p) => p.id === item.id || p.name === item.name,
+                        );
+                        const effectiveOriginalPrice =
+                          item.originalPrice || dbProduct?.price || item.price;
                         const isDiscounted =
-                          item.originalPrice && item.originalPrice > item.price;
+                          effectiveOriginalPrice &&
+                          effectiveOriginalPrice > item.price;
                         const unitDiscount = isDiscounted
-                          ? item.originalPrice - item.price
+                          ? effectiveOriginalPrice - item.price
                           : 0;
 
                         return (
@@ -548,7 +558,7 @@ export default function InvoicesView({ invoices, onDeleteInvoice }) {
                                 <div>
                                   <span className="line-through text-neutral-400 text-[10px] block leading-none">
                                     {Math.round(
-                                      item.originalPrice,
+                                      effectiveOriginalPrice,
                                     ).toLocaleString()}
                                   </span>
                                   <span>
@@ -574,7 +584,11 @@ export default function InvoicesView({ invoices, onDeleteInvoice }) {
                   {(() => {
                     const itemDiscounts = selectedInvoice.items.reduce(
                       (sum, item) => {
-                        const original = item.originalPrice || item.price;
+                        const dbProduct = products.find(
+                          (p) => p.id === item.id || p.name === item.name,
+                        );
+                        const original =
+                          item.originalPrice || dbProduct?.price || item.price;
                         return (
                           sum + Math.max(0, original - item.price) * item.qty
                         );

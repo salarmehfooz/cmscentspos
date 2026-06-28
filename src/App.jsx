@@ -425,6 +425,7 @@ export default function App() {
               <InvoicesView
                 invoices={invoices}
                 onDeleteInvoice={handleDeleteInvoice}
+                products={products}
               />
             )}
 

@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 import { X, Printer } from "lucide-react";
 
-export default function ReceiptModal({ invoice, onClose }) {
+export default function ReceiptModal({ invoice, onClose, products = [] }) {
   const formatPKR = (num) => `PKR ${Math.round(num).toLocaleString()}`;
 
   const handlePrint = () => {
@@ -64,10 +64,10 @@ export default function ReceiptModal({ invoice, onClose }) {
                 Premium Fragrances &amp; Accents
               </p>
               <p className="text-[10px] text-neutral-500 mt-1">
-                Shop #4, Zamzama Luxury Arcade, Phase 5, DHA, Karachi
+                Isra Village, Hala Naka, Hyderabad, Sindh, Pakistan
               </p>
               <p className="text-[10px] text-neutral-400 font-bold mt-0.5">
-                Phone: +92 300 8251234
+                Phone: +92 333 3641997 · www.cmscents.com
               </p>
             </div>
 
@@ -111,10 +111,15 @@ export default function ReceiptModal({ invoice, onClose }) {
                 <span>Total</span>
               </div>
               {invoice.items.map((item) => {
+                const dbProduct = products.find(
+                  (p) => p.id === item.id || p.name === item.name,
+                );
+                const effectiveOriginalPrice =
+                  item.originalPrice || dbProduct?.price || item.price;
                 const isDiscounted =
-                  item.originalPrice && item.originalPrice > item.price;
+                  effectiveOriginalPrice && effectiveOriginalPrice > item.price;
                 const unitDiscount = isDiscounted
-                  ? item.originalPrice - item.price
+                  ? effectiveOriginalPrice - item.price
                   : 0;
 
                 return (
@@ -146,7 +151,11 @@ export default function ReceiptModal({ invoice, onClose }) {
             {/* Calculations */}
             {(() => {
               const itemDiscounts = invoice.items.reduce((sum, item) => {
-                const original = item.originalPrice || item.price;
+                const dbProduct = products.find(
+                  (p) => p.id === item.id || p.name === item.name,
+                );
+                const original =
+                  item.originalPrice || dbProduct?.price || item.price;
                 return sum + Math.max(0, original - item.price) * item.qty;
               }, 0);
               const checkoutDiscount = invoice.disc || 0;
@@ -206,7 +215,7 @@ export default function ReceiptModal({ invoice, onClose }) {
               <div className="flex justify-between">
                 <span className="text-neutral-500">Bank Name:</span>
                 <span className="font-semibold text-neutral-800">
-                  BankIslami
+                  Bank Islami
                 </span>
               </div>
               <div className="flex justify-between">
