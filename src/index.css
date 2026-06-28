@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -9,26 +9,26 @@
 
 :root {
   /* Ultra-premium fragrance brand color palette */
-  --surface-0: #0A0A0D;
+  --surface-0: #0a0a0d;
   --surface-1: #111116;
   --surface-2: #181820;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --border-danger: rgba(239, 68, 68, 0.2);
-  
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  
-  --gold: #CFB050;
-  --gold-light: #E5C76B;
+
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  --gold: #cfb050;
+  --gold-light: #e5c76b;
   --gold-bg: rgba(207, 176, 80, 0.08);
   --gold-border: rgba(207, 176, 80, 0.3);
-  
-  --text-success: #10B981;
-  --text-danger: #EF4444;
-  --text-warning: #F59E0B;
-  
+
+  --text-success: #10b981;
+  --text-danger: #ef4444;
+  --text-warning: #f59e0b;
+
   --bg-success: rgba(16, 185, 129, 0.08);
   --bg-danger: rgba(239, 68, 68, 0.08);
   --bg-warning: rgba(245, 158, 11, 0.08);
@@ -55,8 +55,16 @@
 
 /* Base print styling for Receipts and Reports */
 @media print {
+  @page {
+    margin: 0; /* Removes default browser headers and footers (web URL, local host, page numbers, title, date) */
+  }
+
   /* Reset the entire viewport and allow standard document flow */
-  html, body, #root, #root > div, main {
+  html,
+  body,
+  #root,
+  #root > div,
+  main {
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -72,13 +80,16 @@
   }
 
   /* Target the printable elements specifically and make them visible */
-  .receipt-wrap, .receipt-wrap *, 
-  .printable-report, .printable-report * {
+  .receipt-wrap,
+  .receipt-wrap *,
+  .printable-report,
+  .printable-report * {
     visibility: visible !important;
   }
 
   /* Position the printable elements beautifully and override any fixed/backdrop styles on ancestors */
-  .receipt-wrap, .printable-report {
+  .receipt-wrap,
+  .printable-report {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
@@ -94,14 +105,18 @@
   }
 
   /* Force light backgrounds and dark text on print elements */
-  .receipt-wrap, .printable-report, .receipt-wrap *, .printable-report * {
+  .receipt-wrap,
+  .printable-report,
+  .receipt-wrap *,
+  .printable-report * {
     background: #ffffff !important;
     color: #000000 !important;
     border-color: #d1d5db !important;
   }
 
   /* Override fixed overlays and backdrop blurs to avoid large grey/black blocks on the page */
-  .fixed, [class*="bg-black/75"] {
+  .fixed,
+  [class*="bg-black/75"] {
     position: absolute !important;
     background: transparent !important;
     background-color: transparent !important;

@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React from "react";
 import { motion } from "motion/react";
 import { X, Printer } from "lucide-react";
@@ -64,10 +69,10 @@ export default function ReceiptModal({ invoice, onClose }) {
                 Premium Fragrances &amp; Accents
               </p>
               <p className="text-[10px] text-neutral-500 mt-1">
-                Isra Village, Hala Naka, Hyderabad, Pakistan
+                Shop #4, Zamzama Luxury Arcade, Phase 5, DHA, Karachi
               </p>
               <p className="text-[10px] text-neutral-400 font-bold mt-0.5">
-                Phone: +92 333 3641997 · https://cmscents.com/
+                Phone: +92 300 8251234
               </p>
             </div>
 
@@ -145,6 +150,37 @@ export default function ReceiptModal({ invoice, onClose }) {
               <div className="flex justify-between text-neutral-900 font-bold text-sm border-t border-neutral-200 pt-1.5">
                 <span>Total Amount (PKR)</span>
                 <span>{Math.round(invoice.total).toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Bank Transfer Details */}
+            <div className="mt-4 border border-dashed border-neutral-300 rounded-lg p-2.5 bg-neutral-50 text-[10px] space-y-1">
+              <p className="font-bold text-neutral-700 uppercase tracking-wider text-center text-[9px] border-b border-dashed border-neutral-200 pb-1 mb-1">
+                Bank Transfer Details
+              </p>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Title:</span>
+                <span className="font-semibold text-neutral-800">
+                  C.M SCENTS
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Bank Name:</span>
+                <span className="font-semibold text-neutral-800">
+                  BankIslami
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Account Number:</span>
+                <span className="font-mono font-semibold text-neutral-800">
+                  103300685430190
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">IBAN:</span>
+                <span className="font-mono font-semibold text-neutral-800 text-[9px]">
+                  PK38BKIP0103300685430190
+                </span>
               </div>
             </div>
 
