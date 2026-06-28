@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -521,54 +516,124 @@ export default function InvoicesView({ invoices, onDeleteInvoice }) {
                       <span className="col-span-2 text-right">Total</span>
                     </div>
                     <div className="space-y-2.5">
-                      {selectedInvoice.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="grid grid-cols-12 text-xs items-center text-neutral-800"
-                        >
-                          <span className="col-span-6 font-medium text-neutral-900">
-                            {item.icon} {item.name}
-                          </span>
-                          <span className="col-span-2 text-center text-neutral-500 font-bold">
-                            {item.qty}
-                          </span>
-                          <span className="col-span-2 text-right text-neutral-500">
-                            {Math.round(item.price).toLocaleString()}
-                          </span>
-                          <span className="col-span-2 text-right font-semibold text-neutral-900">
-                            {Math.round(item.price * item.qty).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
+                      {selectedInvoice.items.map((item) => {
+                        const isDiscounted =
+                          item.originalPrice && item.originalPrice > item.price;
+                        const unitDiscount = isDiscounted
+                          ? item.originalPrice - item.price
+                          : 0;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="grid grid-cols-12 text-xs items-center text-neutral-800"
+                          >
+                            <span className="col-span-6 font-medium text-neutral-900">
+                              <div>
+                                {item.icon} {item.name}
+                              </div>
+                              {isDiscounted && (
+                                <div className="text-[10px] text-red-500 font-medium">
+                                  Disc. -
+                                  {Math.round(unitDiscount).toLocaleString()}{" "}
+                                  PKR
+                                </div>
+                              )}
+                            </span>
+                            <span className="col-span-2 text-center text-neutral-500 font-bold">
+                              {item.qty}
+                            </span>
+                            <span className="col-span-2 text-right text-neutral-500">
+                              {isDiscounted ? (
+                                <div>
+                                  <span className="line-through text-neutral-400 text-[10px] block leading-none">
+                                    {Math.round(
+                                      item.originalPrice,
+                                    ).toLocaleString()}
+                                  </span>
+                                  <span>
+                                    {Math.round(item.price).toLocaleString()}
+                                  </span>
+                                </div>
+                              ) : (
+                                Math.round(item.price).toLocaleString()
+                              )}
+                            </span>
+                            <span className="col-span-2 text-right font-semibold text-neutral-900">
+                              {Math.round(
+                                item.price * item.qty,
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
                   {/* Summary Breakdowns */}
-                  <div className="border-t border-dashed border-neutral-300 pt-4 space-y-2 text-xs text-neutral-600">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span className="text-neutral-800">
-                        {Math.round(selectedInvoice.sub).toLocaleString()} PKR
-                      </span>
-                    </div>
+                  {(() => {
+                    const itemDiscounts = selectedInvoice.items.reduce(
+                      (sum, item) => {
+                        const original = item.originalPrice || item.price;
+                        return (
+                          sum + Math.max(0, original - item.price) * item.qty
+                        );
+                      },
+                      0,
+                    );
+                    const checkoutDiscount = selectedInvoice.disc || 0;
+                    const totalDiscount = itemDiscounts + checkoutDiscount;
 
-                    {selectedInvoice.disc > 0 && (
-                      <div className="flex justify-between text-red-600 font-semibold">
-                        <span>Discount Applied</span>
-                        <span>
-                          -{Math.round(selectedInvoice.disc).toLocaleString()}{" "}
-                          PKR
-                        </span>
+                    return (
+                      <div className="border-t border-dashed border-neutral-300 pt-4 space-y-2 text-xs text-neutral-600">
+                        <div className="flex justify-between">
+                          <span>Subtotal</span>
+                          <span className="text-neutral-800">
+                            {Math.round(
+                              selectedInvoice.sub + itemDiscounts,
+                            ).toLocaleString()}{" "}
+                            PKR
+                          </span>
+                        </div>
+
+                        {itemDiscounts > 0 && (
+                          <div className="flex justify-between text-red-500 font-semibold">
+                            <span>Product Discounts</span>
+                            <span>
+                              -{Math.round(itemDiscounts).toLocaleString()} PKR
+                            </span>
+                          </div>
+                        )}
+
+                        {checkoutDiscount > 0 && (
+                          <div className="flex justify-between text-red-500 font-semibold">
+                            <span>Checkout Discount</span>
+                            <span>
+                              -{Math.round(checkoutDiscount).toLocaleString()}{" "}
+                              PKR
+                            </span>
+                          </div>
+                        )}
+
+                        {totalDiscount > 0 && (
+                          <div className="flex justify-between text-red-600 font-bold bg-red-50 p-2 rounded-md border border-red-100">
+                            <span>Total Savings / Discount</span>
+                            <span>
+                              -{Math.round(totalDiscount).toLocaleString()} PKR
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between text-neutral-900 font-bold text-base border-t border-neutral-300 pt-3">
+                          <span>Total Invoice Value</span>
+                          <span className="text-[#B8860B]">
+                            {Math.round(selectedInvoice.total).toLocaleString()}{" "}
+                            PKR
+                          </span>
+                        </div>
                       </div>
-                    )}
-
-                    <div className="flex justify-between text-neutral-900 font-bold text-base border-t border-neutral-300 pt-3">
-                      <span>Total Invoice Value</span>
-                      <span className="text-[#B8860B]">
-                        {Math.round(selectedInvoice.total).toLocaleString()} PKR
-                      </span>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Bank Transfer Details */}
                   <div className="mt-4 border border-dashed border-neutral-300 rounded-lg p-2.5 bg-neutral-50 text-[10px] space-y-1">

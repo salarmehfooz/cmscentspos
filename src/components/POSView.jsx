@@ -26,7 +26,7 @@ export default function POSView({
   const [customerName, setCustomerName] = useState("");
   const [discountPkr, setDiscountPkr] = useState("");
   const [discountPct, setDiscountPct] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Cash On Delivery");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [completedInvoice, setCompletedInvoice] = useState(null);
 
   // Google Sheets integration state
@@ -152,6 +152,7 @@ export default function POSView({
             id: product.id,
             name: product.name,
             price: activePrice,
+            originalPrice: product.price,
             cost: product.cost,
             qty: 1,
             icon: product.icon || "🌸",
@@ -713,7 +714,8 @@ export default function POSView({
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="w-full bg-[#111116] border border-white/5 focus:border-[#CFB050] rounded-xl px-3 py-2 text-white text-xs outline-none cursor-pointer"
             >
-              <option value="Cash">💵 Cash On Delivery</option>
+              <option value="Cash">💵 Cash</option>
+              <option value="Card">💳 Credit / Debit Card</option>
               <option value="Bank transfer">🏦 Direct Bank Transfer</option>
               <option value="JazzCash">📱 JazzCash Wallet</option>
               <option value="EasyPaisa">📱 EasyPaisa Wallet</option>

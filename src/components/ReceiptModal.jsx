@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React from "react";
 import { motion } from "motion/react";
 import { X, Printer } from "lucide-react";
@@ -115,43 +110,87 @@ export default function ReceiptModal({ invoice, onClose }) {
                 <span>Item Description</span>
                 <span>Total</span>
               </div>
-              {invoice.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex justify-between text-xs items-start"
-                >
-                  <div className="pr-4">
-                    <span className="text-neutral-900">
-                      {item.icon} {item.name}
-                    </span>
-                    <span className="text-neutral-500 block text-[11px]">
-                      {item.qty} × {Math.round(item.price).toLocaleString()}
+              {invoice.items.map((item) => {
+                const isDiscounted =
+                  item.originalPrice && item.originalPrice > item.price;
+                const unitDiscount = isDiscounted
+                  ? item.originalPrice - item.price
+                  : 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex justify-between text-xs items-start"
+                  >
+                    <div className="pr-4">
+                      <span className="text-neutral-900">
+                        {item.icon} {item.name}
+                      </span>
+                      <span className="text-neutral-500 block text-[11px]">
+                        {item.qty} × {Math.round(item.price).toLocaleString()}
+                        {isDiscounted && (
+                          <span className="text-red-500 font-medium ml-1.5">
+                            (Disc. -{Math.round(unitDiscount).toLocaleString()})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <span className="text-neutral-900 font-medium whitespace-nowrap">
+                      {Math.round(item.price * item.qty).toLocaleString()}
                     </span>
                   </div>
-                  <span className="text-neutral-900 font-medium whitespace-nowrap">
-                    {Math.round(item.price * item.qty).toLocaleString()}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Calculations */}
-            <div className="border-t border-dashed border-neutral-300 pt-3 space-y-1.5 text-xs text-neutral-600">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>{Math.round(invoice.sub).toLocaleString()}</span>
-              </div>
-              {invoice.disc > 0 && (
-                <div className="flex justify-between text-red-600 font-medium">
-                  <span>Discount</span>
-                  <span>-{Math.round(invoice.disc).toLocaleString()}</span>
+            {(() => {
+              const itemDiscounts = invoice.items.reduce((sum, item) => {
+                const original = item.originalPrice || item.price;
+                return sum + Math.max(0, original - item.price) * item.qty;
+              }, 0);
+              const checkoutDiscount = invoice.disc || 0;
+              const totalDiscount = itemDiscounts + checkoutDiscount;
+
+              return (
+                <div className="border-t border-dashed border-neutral-300 pt-3 space-y-1.5 text-xs text-neutral-600">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>
+                      {Math.round(invoice.sub + itemDiscounts).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {itemDiscounts > 0 && (
+                    <div className="flex justify-between text-red-500 font-medium">
+                      <span>Product Discounts</span>
+                      <span>-{Math.round(itemDiscounts).toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {checkoutDiscount > 0 && (
+                    <div className="flex justify-between text-red-500 font-medium">
+                      <span>Checkout Discount</span>
+                      <span>
+                        -{Math.round(checkoutDiscount).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between text-red-600 font-bold bg-red-50/50 p-1.5 rounded-md border border-red-100/30">
+                      <span>Total Savings / Discount</span>
+                      <span>-{Math.round(totalDiscount).toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-neutral-900 font-bold text-sm border-t border-neutral-200 pt-1.5">
+                    <span>Total Amount (PKR)</span>
+                    <span>{Math.round(invoice.total).toLocaleString()}</span>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between text-neutral-900 font-bold text-sm border-t border-neutral-200 pt-1.5">
-                <span>Total Amount (PKR)</span>
-                <span>{Math.round(invoice.total).toLocaleString()}</span>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Bank Transfer Details */}
             <div className="mt-4 border border-dashed border-neutral-300 rounded-lg p-2.5 bg-neutral-50 text-[10px] space-y-1">
