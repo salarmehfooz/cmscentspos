@@ -663,7 +663,7 @@ export default function InvoicesView({
                     <div className="flex justify-between">
                       <span className="text-neutral-500">Bank Name:</span>
                       <span className="font-semibold text-neutral-800">
-                        BankIslami
+                        Bank Islami
                       </span>
                     </div>
                     <div className="flex justify-between">
