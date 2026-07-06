@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
+
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -10,23 +11,15 @@ import {
   PieChart,
   Pie,
   Cell,
-} from "recharts";
-import {
-  ArrowUpRight,
-  TrendingDown,
-  Printer,
-  FileText,
-  Calendar,
-  Layers,
-  CircleDollarSign,
-} from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+} from 'recharts';
+import { ArrowUpRight, TrendingDown, Printer, FileText, Calendar, Layers, CircleDollarSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function PLView({ invoices, expenses, products }) {
-  const [chartInterval, setChartInterval] = useState("Daily");
+  const [chartInterval, setChartInterval] = useState('Daily');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportType, setReportType] = useState("Monthly");
-  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [reportType, setReportType] = useState('Monthly');
+  const [selectedPeriod, setSelectedPeriod] = useState('');
 
   const formatPrice = (num) => `PKR ${Math.round(num).toLocaleString()}`;
 
@@ -35,21 +28,11 @@ export default function PLView({ invoices, expenses, products }) {
     if (!dStr) return new Date();
     const d = new Date(dStr);
     if (!isNaN(d.getTime())) return d;
-
+    
     // Custom fallback for "DD MMM YYYY" (e.g., "15 Jun 2026")
     const months = {
-      jan: 0,
-      feb: 1,
-      mar: 2,
-      apr: 3,
-      may: 4,
-      jun: 5,
-      jul: 6,
-      aug: 7,
-      sep: 8,
-      oct: 9,
-      nov: 10,
-      dec: 11,
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
     };
     const parts = dStr.trim().split(/\s+/);
     if (parts.length === 3) {
@@ -65,11 +48,7 @@ export default function PLView({ invoices, expenses, products }) {
   };
 
   const getDayLabel = (d) => {
-    return d.toLocaleDateString("en-PK", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return d.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const getWeekLabel = (d) => {
@@ -77,11 +56,11 @@ export default function PLView({ invoices, expenses, products }) {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday week commencing
     const monday = new Date(date.setDate(diff));
-    return `W/C ${monday.toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}`;
+    return `W/C ${monday.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}`;
   };
 
   const getMonthLabel = (d) => {
-    return d.toLocaleDateString("en-PK", { month: "short", year: "numeric" });
+    return d.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
   };
 
   // 1. High-level global financial KPIs
@@ -96,6 +75,10 @@ export default function PLView({ invoices, expenses, products }) {
   const grossProfit = useMemo(() => {
     return totalRevenue - totalCogs;
   }, [totalRevenue, totalCogs]);
+
+  const grossMargin = useMemo(() => {
+    return totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+  }, [grossProfit, totalRevenue]);
 
   const totalExpenses = useMemo(() => {
     return expenses.reduce((sum, e) => sum + e.amt, 0);
@@ -115,31 +98,23 @@ export default function PLView({ invoices, expenses, products }) {
     const keys = [];
 
     // Sort invoices oldest to newest for chronological left-to-right display
-    const sortedInvoices = [...invoices]
-      .map((inv) => ({
-        ...inv,
-        parsedDate: parseDate(inv.date),
-      }))
-      .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+    const sortedInvoices = [...invoices].map(inv => ({
+      ...inv,
+      parsedDate: parseDate(inv.date)
+    })).sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
 
-    sortedInvoices.forEach((inv) => {
-      let label = "";
-      if (chartInterval === "Daily") {
-        label = inv.parsedDate.toLocaleDateString("en-PK", {
-          day: "2-digit",
-          month: "short",
-        });
-      } else if (chartInterval === "Weekly") {
+    sortedInvoices.forEach(inv => {
+      let label = '';
+      if (chartInterval === 'Daily') {
+        label = inv.parsedDate.toLocaleDateString('en-PK', { day: '2-digit', month: 'short' });
+      } else if (chartInterval === 'Weekly') {
         const d = new Date(inv.parsedDate);
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         const startOfWeek = new Date(d.setDate(diff));
-        label = `W/C ${startOfWeek.toLocaleDateString("en-PK", { day: "2-digit", month: "short" })}`;
+        label = `W/C ${startOfWeek.toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })}`;
       } else {
-        label = inv.parsedDate.toLocaleDateString("en-PK", {
-          month: "short",
-          year: "numeric",
-        });
+        label = inv.parsedDate.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
       }
 
       map[label] = (map[label] || 0) + inv.total;
@@ -149,12 +124,12 @@ export default function PLView({ invoices, expenses, products }) {
     });
 
     if (keys.length === 0) {
-      return [{ name: "No Sales Yet", Sales: 0 }];
+      return [{ name: 'No Sales Yet', Sales: 0 }];
     }
 
-    return keys.map((key) => ({
+    return keys.map(key => ({
       name: key,
-      Sales: Math.round(map[key]),
+      Sales: Math.round(map[key])
     }));
   }, [invoices, chartInterval]);
 
@@ -173,16 +148,7 @@ export default function PLView({ invoices, expenses, products }) {
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  const COLORS = [
-    "#CFB050",
-    "#EF4444",
-    "#10B981",
-    "#3B82F6",
-    "#8B5CF6",
-    "#F59E0B",
-    "#EC4899",
-    "#6B7280",
-  ];
+  const COLORS = ['#CFB050', '#EF4444', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#6B7280'];
 
   // 4. Report Options listing
   const reportOptions = useMemo(() => {
@@ -191,8 +157,8 @@ export default function PLView({ invoices, expenses, products }) {
     const monthlySet = new Set();
 
     const allDates = [];
-    invoices.forEach((inv) => allDates.push(parseDate(inv.date)));
-    expenses.forEach((exp) => allDates.push(parseDate(exp.date)));
+    invoices.forEach(inv => allDates.push(parseDate(inv.date)));
+    expenses.forEach(exp => allDates.push(parseDate(exp.date)));
 
     // Newest first for selection dropdown
     allDates.sort((a, b) => b.getTime() - a.getTime());
@@ -201,7 +167,7 @@ export default function PLView({ invoices, expenses, products }) {
     const uniqueWeeks = [];
     const uniqueMonths = [];
 
-    allDates.forEach((d) => {
+    allDates.forEach(d => {
       const dayL = getDayLabel(d);
       const weekL = getWeekLabel(d);
       const monthL = getMonthLabel(d);
@@ -223,7 +189,7 @@ export default function PLView({ invoices, expenses, products }) {
     return {
       Daily: uniqueDays,
       Weekly: uniqueWeeks,
-      Monthly: uniqueMonths,
+      Monthly: uniqueMonths
     };
   }, [invoices, expenses]);
 
@@ -233,38 +199,39 @@ export default function PLView({ invoices, expenses, products }) {
     if (options.length > 0) {
       setSelectedPeriod(options[0]);
     } else {
-      setSelectedPeriod("");
+      setSelectedPeriod('');
     }
   }, [reportType, reportOptions]);
 
   // Report Metrics Calculation
   const reportMetrics = useMemo(() => {
-    const filteredInvoices = invoices.filter((inv) => {
+    const filteredInvoices = invoices.filter(inv => {
       const d = parseDate(inv.date);
-      if (reportType === "Daily") return getDayLabel(d) === selectedPeriod;
-      if (reportType === "Weekly") return getWeekLabel(d) === selectedPeriod;
-      if (reportType === "Monthly") return getMonthLabel(d) === selectedPeriod;
+      if (reportType === 'Daily') return getDayLabel(d) === selectedPeriod;
+      if (reportType === 'Weekly') return getWeekLabel(d) === selectedPeriod;
+      if (reportType === 'Monthly') return getMonthLabel(d) === selectedPeriod;
       return false;
     });
 
-    const filteredExpenses = expenses.filter((exp) => {
+    const filteredExpenses = expenses.filter(exp => {
       const d = parseDate(exp.date);
-      if (reportType === "Daily") return getDayLabel(d) === selectedPeriod;
-      if (reportType === "Weekly") return getWeekLabel(d) === selectedPeriod;
-      if (reportType === "Monthly") return getMonthLabel(d) === selectedPeriod;
+      if (reportType === 'Daily') return getDayLabel(d) === selectedPeriod;
+      if (reportType === 'Weekly') return getWeekLabel(d) === selectedPeriod;
+      if (reportType === 'Monthly') return getMonthLabel(d) === selectedPeriod;
       return false;
     });
 
     const revenue = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
     const cogs = filteredInvoices.reduce((sum, inv) => sum + inv.cogs, 0);
     const grossProfitVal = revenue - cogs;
+    const grossMarginVal = revenue > 0 ? (grossProfitVal / revenue) * 100 : 0;
     const opex = filteredExpenses.reduce((sum, exp) => sum + exp.amt, 0);
     const netProfitVal = grossProfitVal - opex;
     const netMarginVal = revenue > 0 ? (netProfitVal / revenue) * 100 : 0;
 
     const itemSales = {};
-    filteredInvoices.forEach((inv) => {
-      inv.items.forEach((item) => {
+    filteredInvoices.forEach(inv => {
+      inv.items.forEach(item => {
         if (!itemSales[item.name]) {
           itemSales[item.name] = { qty: 0, revenue: 0, icon: item.icon };
         }
@@ -273,14 +240,12 @@ export default function PLView({ invoices, expenses, products }) {
       });
     });
 
-    const itemsList = Object.entries(itemSales)
-      .map(([name, data]) => ({
-        name,
-        qty: data.qty,
-        revenue: data.revenue,
-        icon: data.icon,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
+    const itemsList = Object.entries(itemSales).map(([name, data]) => ({
+      name,
+      qty: data.qty,
+      revenue: data.revenue,
+      icon: data.icon
+    })).sort((a, b) => b.revenue - a.revenue);
 
     return {
       invoices: filteredInvoices,
@@ -288,10 +253,11 @@ export default function PLView({ invoices, expenses, products }) {
       revenue,
       cogs,
       grossProfit: grossProfitVal,
+      grossMargin: grossMarginVal,
       opex,
       netProfit: netProfitVal,
       netMargin: netMarginVal,
-      itemsList,
+      itemsList
     };
   }, [invoices, expenses, reportType, selectedPeriod]);
 
@@ -330,7 +296,7 @@ export default function PLView({ invoices, expenses, products }) {
             Real-time balance sheet and dynamic sales interval analytics
           </p>
         </div>
-
+        
         <button
           onClick={() => setIsReportModalOpen(true)}
           className="bg-[#CFB050] hover:bg-[#E5C76B] text-black px-4.5 py-2.5 rounded-xl text-xs font-semibold font-display flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-[#CFB050]/5 transition-all hover:scale-[1.01] active:scale-[0.99] self-start sm:self-auto"
@@ -384,7 +350,7 @@ export default function PLView({ invoices, expenses, products }) {
           </span>
           <span
             className={`text-lg font-bold font-mono mt-1 block ${
-              netProfit >= 0 ? "text-emerald-400" : "text-red-400"
+              netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
             {formatPrice(netProfit)}
@@ -410,14 +376,14 @@ export default function PLView({ invoices, expenses, products }) {
             </h3>
             {/* Interval Toggles */}
             <div className="flex gap-1 bg-[#181820] p-0.5 rounded-lg border border-white/5">
-              {["Daily", "Weekly", "Monthly"].map((interval) => (
+              {['Daily', 'Weekly', 'Monthly'].map((interval) => (
                 <button
                   key={interval}
                   onClick={() => setChartInterval(interval)}
                   className={`px-2 py-1 rounded-md text-[10px] font-display font-medium transition-all cursor-pointer ${
                     chartInterval === interval
-                      ? "bg-[#CFB050] text-black font-semibold"
-                      : "text-gray-400 hover:text-white"
+                      ? 'bg-[#CFB050] text-black font-semibold'
+                      : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   {interval}
@@ -425,40 +391,15 @@ export default function PLView({ invoices, expenses, products }) {
               ))}
             </div>
           </div>
-
+          
           <div className="flex-1 min-h-0 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartSalesData}
-                margin={{ left: -10, right: 10, top: 10, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.03)"
-                />
-                <XAxis
-                  dataKey="name"
-                  stroke="#6B7280"
-                  fontSize={10}
-                  fontStyle="mono"
-                  tickLine={false}
-                />
-                <YAxis
-                  stroke="#6B7280"
-                  fontSize={10}
-                  fontStyle="mono"
-                  tickLine={false}
-                />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ fill: "rgba(255,255,255,0.01)" }}
-                />
-                <Bar
-                  dataKey="Sales"
-                  fill="#CFB050"
-                  radius={[4, 4, 0, 0]}
-                  barSize={28}
-                />
+              <BarChart data={chartSalesData} margin={{ left: -10, right: 10, top: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                <XAxis dataKey="name" stroke="#6B7280" fontSize={10} fontStyle="mono" tickLine={false} />
+                <YAxis stroke="#6B7280" fontSize={10} fontStyle="mono" tickLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.01)' }} />
+                <Bar dataKey="Sales" fill="#CFB050" radius={[4, 4, 0, 0]} barSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -472,7 +413,7 @@ export default function PLView({ invoices, expenses, products }) {
           <div className="flex-1 min-h-0 w-full flex flex-col sm:flex-row items-center justify-center gap-4">
             {expensesBreakdownData.length > 0 ? (
               <>
-                <div className="flex-1 min-h-[160px] w-full">
+                <div className="w-full h-48 sm:h-full flex-1 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -485,10 +426,7 @@ export default function PLView({ invoices, expenses, products }) {
                         dataKey="value"
                       >
                         {expensesBreakdownData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip content={<CustomTooltip />} />
@@ -498,24 +436,16 @@ export default function PLView({ invoices, expenses, products }) {
                 {/* Custom Legend */}
                 <div className="w-full sm:w-44 space-y-1.5 max-h-[180px] overflow-y-auto text-[10px] font-mono pr-1 scrollbar-thin">
                   {expensesBreakdownData.map((entry, idx) => (
-                    <div
-                      key={entry.name}
-                      className="flex items-center justify-between text-gray-300"
-                    >
+                    <div key={entry.name} className="flex items-center justify-between text-gray-300">
                       <div className="flex items-center gap-2 truncate">
                         <span
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundColor: COLORS[idx % COLORS.length],
-                          }}
+                          style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                         />
                         <span className="truncate">{entry.name}</span>
                       </div>
                       <span className="text-gray-500 font-bold ml-1">
-                        {((entry.value / (totalExpenses || 1)) * 100).toFixed(
-                          0,
-                        )}
-                        %
+                        {((entry.value / (totalExpenses || 1)) * 100).toFixed(0)}%
                       </span>
                     </div>
                   ))}
@@ -532,74 +462,74 @@ export default function PLView({ invoices, expenses, products }) {
 
       {/* Overview Balance Ledger */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Income Columns */}
+        {/* Gross Profit Section (Manufacturing) */}
         <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex flex-col">
           <h4 className="font-display font-bold text-[10px] text-gray-500 uppercase tracking-widest pb-3 border-b border-white/5 mb-3">
-            Income Streams
+            I. Gross Profit Generation
           </h4>
-          <div className="space-y-1.5 flex-1 text-xs">
+          <div className="space-y-3 flex-1 text-xs">
             <div className="flex justify-between items-center py-2 border-b border-white/[0.02]">
-              <span className="text-gray-400 font-mono">
-                EDP Fragrance Sales Receipts
-              </span>
+              <span className="text-gray-400 font-mono">EDP Fragrance Sales Receipts</span>
               <span className="text-emerald-400 font-mono font-bold">
                 +{formatPrice(totalRevenue)}
               </span>
             </div>
+            <div className="flex justify-between items-center py-2 border-b border-white/[0.02]">
+              <span className="text-gray-400 font-mono">Cost of Goods Sold (COGS)</span>
+              <span className="text-red-400 font-mono font-bold">
+                -{formatPrice(totalCogs)}
+              </span>
+            </div>
             <p className="text-[10px] text-gray-600 italic mt-2">
-              All 6 active house formulations are categorized under Eau de
-              Parfum (EDP).
+              COGS represents the raw manufacturing/formulation cost of fragrances sold.
             </p>
           </div>
-          <div className="border-t border-white/10 pt-3 mt-4 flex justify-between items-center text-xs font-bold font-display">
-            <span className="text-white">Gross Revenue</span>
-            <span className="text-[#CFB050] font-mono">
-              {formatPrice(totalRevenue)}
-            </span>
+          <div className="border-t border-white/10 pt-3 mt-4 space-y-1">
+            <div className="flex justify-between items-center text-xs font-bold font-display">
+              <span className="text-white">Gross Profit (Value Addition)</span>
+              <span className="text-[#CFB050] font-mono">{formatPrice(grossProfit)}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-mono text-gray-400">
+              <span>Gross Profit Margin</span>
+              <span>{grossMargin.toFixed(1)}%</span>
+            </div>
           </div>
         </div>
 
-        {/* Expenses and COGS Columns */}
+        {/* Net Profit Section (Operating) */}
         <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex flex-col">
           <h4 className="font-display font-bold text-[10px] text-gray-500 uppercase tracking-widest pb-3 border-b border-white/5 mb-3">
-            Overhead / Product Costs
+            II. Net Profit Realization
           </h4>
-          <div className="space-y-1.5 flex-1 text-xs">
-            {totalCogs > 0 && (
-              <div className="flex justify-between items-center py-1 border-b border-white/[0.02]">
-                <span className="text-gray-400 font-mono">
-                  Product COGS cost price
-                </span>
-                <span className="text-red-400 font-mono font-bold">
-                  -{formatPrice(totalCogs)}
-                </span>
-              </div>
-            )}
+          <div className="space-y-1.5 flex-1 text-xs max-h-[160px] overflow-y-auto scrollbar-thin pr-1">
+            <div className="flex justify-between items-center py-1 border-b border-white/[0.02] text-gray-400">
+              <span className="font-mono">Gross Profit Carryover</span>
+              <span className="font-mono text-emerald-400">+{formatPrice(grossProfit)}</span>
+            </div>
             {expensesBreakdownData.length > 0 ? (
               expensesBreakdownData.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex justify-between items-center py-1 border-b border-white/[0.02] last:border-0"
-                >
-                  <span className="text-gray-400 font-mono">
-                    Operating: {item.name}
-                  </span>
-                  <span className="text-red-400 font-mono font-bold">
+                <div key={item.name} className="flex justify-between items-center py-1 border-b border-white/[0.02] last:border-0">
+                  <span className="text-gray-400 font-mono">OPEX: {item.name}</span>
+                  <span className="text-red-400 font-mono">
                     -{formatPrice(item.value)}
                   </span>
                 </div>
               ))
             ) : (
-              <div className="text-gray-600 text-center py-4">
-                No logged overhead expenses.
-              </div>
+              <div className="text-gray-600 text-center py-4">No operating overhead expenses logged.</div>
             )}
           </div>
-          <div className="border-t border-white/10 pt-3 mt-4 flex justify-between items-center text-xs font-bold font-display">
-            <span className="text-white">Total Deductions</span>
-            <span className="text-red-400 font-mono">
-              {formatPrice(totalCogs + totalExpenses)}
-            </span>
+          <div className="border-t border-white/10 pt-3 mt-4 space-y-1">
+            <div className="flex justify-between items-center text-xs font-bold font-display">
+              <span className="text-white">Net Profit (Bottom-Line)</span>
+              <span className={`font-mono ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formatPrice(netProfit)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-mono text-gray-400">
+              <span>Net Operating Margin</span>
+              <span>{netMargin.toFixed(1)}%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -634,24 +564,17 @@ export default function PLView({ invoices, expenses, products }) {
 
               {/* Modal Body */}
               <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
-                {typeof window !== "undefined" &&
-                  window.self !== window.top && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-200 p-3.5 rounded-xl text-xs leading-relaxed flex flex-col gap-1 shadow-inner">
-                      <span className="font-bold flex items-center gap-1 text-amber-400">
-                        ⚠️ Browser Security Sandbox Notice
-                      </span>
-                      <p>
-                        Because this app is running inside an embedded preview
-                        frame, direct printing can sometimes be blocked by your
-                        browser. For a perfect print/PDF, click the{" "}
-                        <strong className="text-white">
-                          "Open in New Tab"
-                        </strong>{" "}
-                        icon in the top-right of the preview window and print
-                        from there!
-                      </p>
-                    </div>
-                  )}
+                {typeof window !== 'undefined' && window.self !== window.top && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-200 p-3.5 rounded-xl text-xs leading-relaxed flex flex-col gap-1 shadow-inner">
+                    <span className="font-bold flex items-center gap-1 text-amber-400">
+                      ⚠️ Browser Security Sandbox Notice
+                    </span>
+                    <p>
+                      Because this app is running inside an embedded preview frame, direct printing can sometimes be blocked by your browser. 
+                      For a perfect print/PDF, click the <strong className="text-white">"Open in New Tab"</strong> icon in the top-right of the preview window and print from there!
+                    </p>
+                  </div>
+                )}
 
                 {/* Configuration selection selectors */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -661,15 +584,15 @@ export default function PLView({ invoices, expenses, products }) {
                       Statement Duration Level
                     </span>
                     <div className="flex gap-1 bg-[#111116] p-1 rounded-xl border border-white/5">
-                      {["Daily", "Weekly", "Monthly"].map((type) => (
+                      {['Daily', 'Weekly', 'Monthly'].map((type) => (
                         <button
                           key={type}
                           type="button"
                           onClick={() => setReportType(type)}
                           className={`flex-1 py-2 text-xs font-display font-semibold rounded-lg transition-all cursor-pointer ${
                             reportType === type
-                              ? "bg-[#CFB050] text-black shadow"
-                              : "text-gray-400 hover:text-white"
+                              ? 'bg-[#CFB050] text-black shadow'
+                              : 'text-gray-400 hover:text-white'
                           }`}
                         >
                           {type}
@@ -683,8 +606,7 @@ export default function PLView({ invoices, expenses, products }) {
                     <span className="text-[10px] text-gray-400 font-mono uppercase tracking-wider font-semibold">
                       Select Target Period
                     </span>
-                    {reportOptions[reportType] &&
-                    reportOptions[reportType].length > 0 ? (
+                    {reportOptions[reportType] && reportOptions[reportType].length > 0 ? (
                       <select
                         value={selectedPeriod}
                         onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -712,8 +634,7 @@ export default function PLView({ invoices, expenses, products }) {
                         C·M SCENTS FINANCIALS
                       </span>
                       <span className="text-[10px] text-gray-500 font-mono block uppercase">
-                        {reportType} Statement ·{" "}
-                        {selectedPeriod || "No Period Selected"}
+                        {reportType} Statement · {selectedPeriod || 'No Period Selected'}
                       </span>
                     </div>
                     <FileText size={18} className="text-[#CFB050]" />
@@ -722,79 +643,60 @@ export default function PLView({ invoices, expenses, products }) {
                   {/* High level metrics cards preview */}
                   {selectedPeriod ? (
                     <>
-                      <div className="grid grid-cols-3 gap-2 text-center bg-white/[0.01] p-3 rounded-xl border border-white/5">
+                      <div className="grid grid-cols-4 gap-1.5 text-center bg-white/[0.01] p-2.5 rounded-xl border border-white/5">
                         <div>
-                          <span className="text-[8px] text-gray-500 uppercase font-mono block">
-                            Gross Income
-                          </span>
-                          <span className="text-xs font-bold font-mono text-emerald-400 mt-0.5 block">
+                          <span className="text-[7.5px] text-gray-500 uppercase font-mono block">Gross Income</span>
+                          <span className="text-[10px] sm:text-xs font-bold font-mono text-emerald-400 mt-0.5 block truncate">
                             {formatPrice(reportMetrics.revenue)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[8px] text-gray-500 uppercase font-mono block">
-                            Deductions
-                          </span>
-                          <span className="text-xs font-bold font-mono text-red-400 mt-0.5 block">
-                            {formatPrice(
-                              reportMetrics.opex + reportMetrics.cogs,
-                            )}
+                          <span className="text-[7.5px] text-gray-500 uppercase font-mono block">COGS</span>
+                          <span className="text-[10px] sm:text-xs font-bold font-mono text-red-400 mt-0.5 block truncate">
+                            {formatPrice(reportMetrics.cogs)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[8px] text-gray-500 uppercase font-mono block">
-                            Net Result
+                          <span className="text-[7.5px] text-gray-500 uppercase font-mono block">Gross Profit</span>
+                          <span className="text-[10px] sm:text-xs font-bold font-mono text-[#CFB050] mt-0.5 block truncate">
+                            {formatPrice(reportMetrics.grossProfit)}
                           </span>
-                          <span
-                            className={`text-xs font-bold font-mono mt-0.5 block ${reportMetrics.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                          >
+                        </div>
+                        <div>
+                          <span className="text-[7.5px] text-gray-500 uppercase font-mono block">Net profit</span>
+                          <span className={`text-[10px] sm:text-xs font-bold font-mono mt-0.5 block truncate ${reportMetrics.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatPrice(reportMetrics.netProfit)}
                           </span>
                         </div>
                       </div>
 
                       {/* Ledger preview lists */}
-                      <div className="space-y-3.5 text-xs text-gray-300">
+                      <div className="space-y-3 text-xs text-gray-300">
                         {/* Revenue line */}
                         <div className="flex justify-between border-b border-white/[0.02] pb-1.5">
-                          <span>
-                            I. Customer Invoiced Sales (
-                            {reportMetrics.invoices.length} orders)
-                          </span>
-                          <span className="font-mono text-emerald-400 font-semibold">
-                            +{formatPrice(reportMetrics.revenue)}
-                          </span>
+                          <span>I. Customer Invoiced Sales ({reportMetrics.invoices.length} orders)</span>
+                          <span className="font-mono text-emerald-400 font-semibold">+{formatPrice(reportMetrics.revenue)}</span>
                         </div>
                         {/* COGS line */}
                         <div className="flex justify-between border-b border-white/[0.02] pb-1.5">
-                          <span>
-                            II. Total Cost of Goods Manufactured (COGS)
-                          </span>
-                          <span className="font-mono text-red-400 font-semibold">
-                            -{formatPrice(reportMetrics.cogs)}
-                          </span>
+                          <span>II. Cost of Goods Manufactured (COGS)</span>
+                          <span className="font-mono text-red-400 font-semibold text-right">-{formatPrice(reportMetrics.cogs)}</span>
+                        </div>
+                        {/* Gross Profit subtotal */}
+                        <div className="flex justify-between border-b border-white/[0.05] pb-1.5 text-[#CFB050] font-semibold bg-white/[0.01] px-2 py-1 rounded">
+                          <span>Gross Profit (Margin: {reportMetrics.grossMargin.toFixed(1)}%)</span>
+                          <span className="font-mono">{formatPrice(reportMetrics.grossProfit)}</span>
                         </div>
                         {/* OPEX line */}
                         <div className="flex justify-between border-b border-white/[0.02] pb-1.5">
-                          <span>
-                            III. Operating overhead expenses (
-                            {reportMetrics.expenses.length} records)
-                          </span>
-                          <span className="font-mono text-red-400 font-semibold">
-                            -{formatPrice(reportMetrics.opex)}
-                          </span>
+                          <span>III. Operating overhead expenses ({reportMetrics.expenses.length} records)</span>
+                          <span className="font-mono text-red-400 font-semibold text-right">-{formatPrice(reportMetrics.opex)}</span>
                         </div>
-
+                        
                         {/* Bottom net row */}
                         <div className="flex justify-between pt-1 border-t border-white/5 font-bold font-display text-white">
-                          <span>Net Statement Profit</span>
-                          <span
-                            className={
-                              reportMetrics.netProfit >= 0
-                                ? "text-emerald-400"
-                                : "text-red-400"
-                            }
-                          >
+                          <span>Net Statement Profit (Margin: {reportMetrics.netMargin.toFixed(1)}%)</span>
+                          <span className={reportMetrics.netProfit >= 0 ? 'text-emerald-400 font-mono' : 'text-red-400 font-mono'}>
                             {formatPrice(reportMetrics.netProfit)}
                           </span>
                         </div>
@@ -802,8 +704,7 @@ export default function PLView({ invoices, expenses, products }) {
                     </>
                   ) : (
                     <div className="text-center py-6 text-gray-600 text-xs">
-                      Please enter a sales or expense record to preview
-                      statements.
+                      Please enter a sales or expense record to preview statements.
                     </div>
                   )}
                 </div>
@@ -822,8 +723,8 @@ export default function PLView({ invoices, expenses, products }) {
                   disabled={!selectedPeriod}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
                     selectedPeriod
-                      ? "bg-[#CFB050] hover:bg-[#E5C76B] text-black cursor-pointer shadow-lg active:scale-[0.98]"
-                      : "bg-white/5 text-gray-600 cursor-not-allowed"
+                      ? 'bg-[#CFB050] hover:bg-[#E5C76B] text-black cursor-pointer shadow-lg active:scale-[0.98]'
+                      : 'bg-white/5 text-gray-600 cursor-not-allowed'
                   }`}
                 >
                   <Printer size={13} />
@@ -841,87 +742,54 @@ export default function PLView({ invoices, expenses, products }) {
           <div className="printable-report bg-white text-neutral-900 p-8 font-mono text-xs max-w-2xl mx-auto border border-neutral-300">
             {/* Elegant Luxury Header */}
             <div className="text-center mb-6 pb-4 border-b-2 border-dashed border-neutral-300">
-              <h2 className="font-display font-bold text-xl tracking-[0.25em] text-[#B8860B] uppercase">
-                C·M SCENTS
-              </h2>
-              <p className="text-[9px] text-neutral-500 uppercase tracking-widest mt-1">
-                Premium Fragrances &amp; Accents
-              </p>
-              <p className="text-[10px] text-neutral-400 mt-0.5">
-                Karachi, Pakistan · www.cmscents.com
-              </p>
+              <h2 className="font-display font-bold text-xl tracking-[0.25em] text-[#B8860B] uppercase">C·M SCENTS</h2>
+              <p className="text-[9px] text-neutral-500 uppercase tracking-widest mt-1">Premium Fragrances &amp; Accents</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">Hyderabad, Pakistan · www.cmscents.com</p>
               <h3 className="text-sm font-bold uppercase tracking-wider mt-4 text-neutral-800">
                 PROFIT &amp; LOSS REPORT ({reportType.toUpperCase()})
               </h3>
-              <p className="text-xs font-semibold text-[#B8860B] mt-1">
-                {selectedPeriod}
-              </p>
+              <p className="text-xs font-semibold text-[#B8860B] mt-1">{selectedPeriod}</p>
             </div>
 
             {/* Statement Metadata Block */}
             <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xs text-neutral-600 mb-6 pb-4 border-b border-dashed border-neutral-300">
               <div>
-                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">
-                  Statement Type
-                </span>
-                <span className="font-bold text-neutral-900">
-                  {reportType} Financial Statement
-                </span>
+                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">Statement Type</span>
+                <span className="font-bold text-neutral-900">{reportType} Financial Statement</span>
               </div>
               <div>
-                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">
-                  Reporting Period
-                </span>
-                <span className="font-bold text-neutral-900">
-                  {selectedPeriod}
-                </span>
+                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">Reporting Period</span>
+                <span className="font-bold text-neutral-900">{selectedPeriod}</span>
               </div>
               <div className="mt-1">
-                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">
-                  Generated Date
-                </span>
+                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">Generated Date</span>
                 <span className="text-neutral-900">
-                  {new Date().toLocaleString("en-PK", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
               </div>
               <div className="mt-1">
-                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">
-                  Currency / Scale
-                </span>
-                <span className="text-neutral-900 font-bold">
-                  PKR (Pakistan Rupee)
-                </span>
+                <span className="text-neutral-400 text-[9px] uppercase tracking-wider block">Currency / Scale</span>
+                <span className="text-neutral-900 font-bold">PKR (Pakistan Rupee)</span>
               </div>
             </div>
 
             {/* Key Performance Indicators summary */}
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-6 grid grid-cols-3 gap-3 text-center">
+            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-6 grid grid-cols-4 gap-2 text-center">
               <div>
-                <span className="text-[8px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">
-                  Gross Revenue
-                </span>
-                <span className="text-xs font-bold text-neutral-900 font-mono">
-                  {formatPrice(reportMetrics.revenue)}
-                </span>
+                <span className="text-[7.5px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">Gross Revenue</span>
+                <span className="text-xs font-bold text-neutral-900 font-mono">{formatPrice(reportMetrics.revenue)}</span>
               </div>
               <div>
-                <span className="text-[8px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">
-                  OPEX &amp; Cost Deductions
-                </span>
-                <span className="text-xs font-bold text-red-600 font-mono">
-                  -{formatPrice(reportMetrics.opex + reportMetrics.cogs)}
-                </span>
+                <span className="text-[7.5px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">Product COGS</span>
+                <span className="text-xs font-bold text-red-600 font-mono">-{formatPrice(reportMetrics.cogs)}</span>
               </div>
               <div>
-                <span className="text-[8px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">
-                  Net Statement profit
-                </span>
-                <span
-                  className={`text-xs font-bold font-mono ${reportMetrics.netProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}
-                >
+                <span className="text-[7.5px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">Gross Profit</span>
+                <span className="text-xs font-bold text-[#B8860B] font-mono">{formatPrice(reportMetrics.grossProfit)}</span>
+              </div>
+              <div>
+                <span className="text-[7.5px] text-neutral-500 uppercase tracking-wider block font-bold mb-0.5">Net Profit</span>
+                <span className={`text-xs font-bold font-mono ${reportMetrics.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                   {formatPrice(reportMetrics.netProfit)}
                 </span>
               </div>
@@ -936,22 +804,15 @@ export default function PLView({ invoices, expenses, products }) {
                 </h4>
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between items-center py-0.5">
-                    <span className="text-neutral-700">
-                      Gross Sales Receipts ({reportMetrics.invoices.length}{" "}
-                      invoices)
-                    </span>
-                    <span className="font-mono text-neutral-900 font-bold">
-                      +{formatPrice(reportMetrics.revenue)}
-                    </span>
+                    <span className="text-neutral-700">Gross Sales Receipts ({reportMetrics.invoices.length} invoices)</span>
+                    <span className="font-mono text-neutral-900 font-bold">+{formatPrice(reportMetrics.revenue)}</span>
                   </div>
                   {/* Item sales breakdown during period */}
                   {reportMetrics.itemsList.length > 0 && (
                     <div className="pl-4 border-l border-neutral-200 mt-1.5 space-y-1 text-[10px] text-neutral-500">
                       {reportMetrics.itemsList.map((item) => (
                         <div key={item.name} className="flex justify-between">
-                          <span>
-                            {item.icon} {item.name} (×{item.qty})
-                          </span>
+                          <span>{item.icon} {item.name} (×{item.qty})</span>
                           <span>{formatPrice(item.revenue)}</span>
                         </div>
                       ))}
@@ -967,14 +828,16 @@ export default function PLView({ invoices, expenses, products }) {
                 </h4>
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between items-center py-0.5">
-                    <span className="text-neutral-700">
-                      Total batch formulation raw manufacturing costs
-                    </span>
-                    <span className="font-mono text-red-600 font-bold">
-                      -{formatPrice(reportMetrics.cogs)}
-                    </span>
+                    <span className="text-neutral-700">Total batch formulation raw manufacturing costs</span>
+                    <span className="font-mono text-red-600 font-bold">-{formatPrice(reportMetrics.cogs)}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Intermediate Gross Profit line */}
+              <div className="bg-neutral-50 border-y border-dashed border-neutral-300 py-1.5 my-2 flex justify-between text-xs font-bold text-[#B8860B] px-2">
+                <span>Gross Profit (Gross Margin: {reportMetrics.grossMargin.toFixed(1)}%)</span>
+                <span className="font-mono">{formatPrice(reportMetrics.grossProfit)}</span>
               </div>
 
               {/* III. OPEX Stream */}
@@ -985,22 +848,13 @@ export default function PLView({ invoices, expenses, products }) {
                 <div className="space-y-1.5 text-xs">
                   {reportMetrics.expenses.length > 0 ? (
                     reportMetrics.expenses.map((exp) => (
-                      <div
-                        key={exp.id}
-                        className="flex justify-between items-center py-0.5 border-b border-neutral-100 last:border-0"
-                      >
-                        <span className="text-neutral-700">
-                          {exp.date} · {exp.desc} ({exp.cat})
-                        </span>
-                        <span className="font-mono text-red-600">
-                          -{formatPrice(exp.amt)}
-                        </span>
+                      <div key={exp.id} className="flex justify-between items-center py-0.5 border-b border-neutral-100 last:border-0">
+                        <span className="text-neutral-700">{exp.date} · {exp.desc} ({exp.cat})</span>
+                        <span className="font-mono text-red-600">-{formatPrice(exp.amt)}</span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-neutral-400 italic py-0.5 text-[10px]">
-                      No operating expenses logged in this statement period.
-                    </p>
+                    <p className="text-neutral-400 italic py-0.5 text-[10px]">No operating expenses logged in this statement period.</p>
                   )}
                 </div>
               </div>
@@ -1008,26 +862,16 @@ export default function PLView({ invoices, expenses, products }) {
               {/* Balance Summary Ledger */}
               <div className="border-t-2 border-dashed border-neutral-400 pt-3.5 mt-4 space-y-1.5 text-xs">
                 <div className="flex justify-between text-neutral-600">
-                  <span>Gross Profit (Revenue - COGS)</span>
-                  <span className="font-mono text-neutral-800 font-semibold">
-                    {formatPrice(reportMetrics.grossProfit)}
-                  </span>
+                  <span>Gross Profit Carryover</span>
+                  <span className="font-mono text-neutral-800 font-semibold">{formatPrice(reportMetrics.grossProfit)}</span>
                 </div>
                 <div className="flex justify-between text-neutral-600">
                   <span>Operating Expenses (OPEX overheads)</span>
-                  <span className="font-mono text-neutral-800 font-semibold">
-                    -{formatPrice(reportMetrics.opex)}
-                  </span>
+                  <span className="font-mono text-neutral-800 font-semibold">-{formatPrice(reportMetrics.opex)}</span>
                 </div>
                 <div className="flex justify-between text-neutral-900 font-bold text-sm border-t border-neutral-300 pt-2.5">
                   <span>Net Statement Profit (Bottom-Line Value)</span>
-                  <span
-                    className={
-                      reportMetrics.netProfit >= 0
-                        ? "text-emerald-700 font-bold"
-                        : "text-red-600 font-bold"
-                    }
-                  >
+                  <span className={reportMetrics.netProfit >= 0 ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold'}>
                     {formatPrice(reportMetrics.netProfit)}
                   </span>
                 </div>
@@ -1052,12 +896,8 @@ export default function PLView({ invoices, expenses, products }) {
 
             {/* Authentic Brand Fine Print footer */}
             <div className="text-center text-[8px] text-neutral-400 mt-8 space-y-0.5">
-              <p className="font-semibold text-neutral-500 uppercase tracking-widest">
-                C·M SCENTS ENTERPRISE POS SYSTEMS
-              </p>
-              <p className="italic">
-                "Where luxury meets artisanal craftsmanship"
-              </p>
+              <p className="font-semibold text-neutral-500 uppercase tracking-widest">C·M SCENTS ENTERPRISE POS SYSTEMS</p>
+              <p className="italic">"Where luxury meets artisanal craftsmanship"</p>
             </div>
           </div>
         </div>
