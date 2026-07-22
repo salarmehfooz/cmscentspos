@@ -1,9 +1,16 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const STORAGE_KEYS = {
   PRODUCTS: "cms_pos_products",
   EXPENSES: "cms_pos_expenses",
   INVOICES: "cms_pos_invoices",
   NEXT_INV: "cms_pos_next_inv",
   NEXT_PROD: "cms_pos_next_prod",
+  SHEET_ORDERS: "cms_pos_sheet_orders",
+  DELETED_ORDERS: "cms_pos_deleted_orders",
 };
 
 export const INITIAL_PRODUCTS = [
@@ -92,7 +99,36 @@ export const INITIAL_EXPENSES = [
     amt: 15000,
   },
 ];
+
 export const INITIAL_SHEET_ORDERS = [];
+
+export function getDeletedOrderIds() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.DELETED_ORDERS);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function addDeletedOrderId(id) {
+  if (!id) return;
+  try {
+    const current = getDeletedOrderIds();
+    const strId = String(id).trim().toLowerCase();
+    if (!current.some((x) => String(x).trim().toLowerCase() === strId)) {
+      current.push(id);
+      localStorage.setItem(
+        STORAGE_KEYS.DELETED_ORDERS,
+        JSON.stringify(current),
+      );
+    }
+  } catch (e) {
+    console.error("Error saving deleted order ID", e);
+  }
+}
 
 export function getStoredSheetOrders() {
   try {
@@ -100,7 +136,23 @@ export function getStoredSheetOrders() {
     if (!data) return [];
     const parsed = JSON.parse(data);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((o) => o.id !== "GSO-101" && o.id !== "GSO-102");
+    const deleted = getDeletedOrderIds().map((x) =>
+      String(x).trim().toLowerCase(),
+    );
+    return parsed.filter((o) => {
+      const oId = String(o.id || "")
+        .trim()
+        .toLowerCase();
+      const oNum = String(o.orderId || o.orderNumber || "")
+        .trim()
+        .toLowerCase();
+      return (
+        o.id !== "GSO-101" &&
+        o.id !== "GSO-102" &&
+        !deleted.includes(oId) &&
+        !deleted.includes(oNum)
+      );
+    });
   } catch (e) {
     console.error("Error reading sheet orders from localStorage", e);
     return [];
@@ -208,6 +260,7 @@ export function exportBackupData() {
     products: getStoredProducts(),
     expenses: getStoredExpenses(),
     invoices: getStoredInvoices(),
+    sheetOrders: getStoredSheetOrders(),
     nextInv: getStoredNextInv(),
     nextProd: getStoredNextProd(),
     timestamp: new Date().toISOString(),
@@ -226,6 +279,9 @@ export function importBackupData(jsonString) {
     }
     if (parsed.invoices && Array.isArray(parsed.invoices)) {
       setStoredInvoices(parsed.invoices);
+    }
+    if (parsed.sheetOrders && Array.isArray(parsed.sheetOrders)) {
+      setStoredSheetOrders(parsed.sheetOrders);
     }
     if (typeof parsed.nextInv === "number") {
       setStoredNextInv(parsed.nextInv);

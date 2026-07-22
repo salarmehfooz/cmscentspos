@@ -26,6 +26,7 @@ import {
   Trash2,
 } from "lucide-react";
 import ReceiptModal from "./ReceiptModal";
+import { addDeletedOrderId, getDeletedOrderIds } from "../storage";
 
 export default function SheetOrdersView({
   sheetOrders = [],
@@ -52,6 +53,11 @@ export default function SheetOrdersView({
       orderToDelete.orderId || orderToDelete.orderNumber || "",
     ).trim();
     const idToDelete = targetOrderId || targetId;
+
+    // Save to local blacklist storage so it's permanently ignored even if Apps Script returns it
+    addDeletedOrderId(idToDelete);
+    if (targetId) addDeletedOrderId(targetId);
+    if (targetOrderId) addDeletedOrderId(targetOrderId);
 
     // 1. Update local state immediately
     const updated = sheetOrders.filter((o) => {
@@ -169,14 +175,27 @@ export default function SheetOrdersView({
       }
 
       if (ordersArray && Array.isArray(ordersArray) && ordersArray.length > 0) {
-        // Merge fetched orders with existing ones without duplicating and exclude dummy orders
-        const realOrdersOnly = sheetOrders.filter(
-          (o) =>
+        const deletedIds = getDeletedOrderIds().map((x) =>
+          String(x).trim().toLowerCase(),
+        );
+
+        // Merge fetched orders with existing ones without duplicating and exclude dummy or deleted orders
+        const realOrdersOnly = sheetOrders.filter((o) => {
+          const oId = String(o.id || "")
+            .trim()
+            .toLowerCase();
+          const oNum = String(o.orderId || o.orderNumber || "")
+            .trim()
+            .toLowerCase();
+          return (
             o.id !== "GSO-101" &&
             o.id !== "GSO-102" &&
             o.orderId !== "ORD-8801" &&
-            o.orderId !== "ORD-8802",
-        );
+            o.orderId !== "ORD-8802" &&
+            !deletedIds.includes(oId) &&
+            !deletedIds.includes(oNum)
+          );
+        });
         const merged = [...realOrdersOnly];
         let addedCount = 0;
 
@@ -193,6 +212,14 @@ export default function SheetOrdersView({
           const incomingId = String(
             incoming.id || incomingOrderNum || "",
           ).trim();
+
+          // Skip if this incoming order was deleted by user
+          if (
+            deletedIds.includes(incomingOrderNum.toLowerCase()) ||
+            deletedIds.includes(incomingId.toLowerCase())
+          ) {
+            return;
+          }
 
           // Check if this order already exists in merged list (by ID or Order Number)
           const exists = merged.some((o) => {
