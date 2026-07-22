@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -201,7 +196,7 @@ export default function SheetOrdersView({
 
         ordersArray.forEach((incoming) => {
           // Identify order identifier safely
-          const incomingOrderNum = String(
+          let incomingOrderNum = String(
             incoming.orderNumber ||
               incoming.orderId ||
               incoming.id ||
@@ -209,14 +204,20 @@ export default function SheetOrdersView({
               "",
           ).trim();
 
-          const incomingId = String(
-            incoming.id || incomingOrderNum || "",
-          ).trim();
+          if (
+            !incomingOrderNum &&
+            (incoming.customer || incoming.name || incoming.products)
+          ) {
+            incomingOrderNum = "ORD-" + Math.floor(1000 + Math.random() * 9000);
+          }
+
+          const incomingId = String(incoming.id || incomingOrderNum).trim();
 
           // Skip if this incoming order was deleted by user
           if (
-            deletedIds.includes(incomingOrderNum.toLowerCase()) ||
-            deletedIds.includes(incomingId.toLowerCase())
+            (incomingOrderNum &&
+              deletedIds.includes(incomingOrderNum.toLowerCase())) ||
+            (incomingId && deletedIds.includes(incomingId.toLowerCase()))
           ) {
             return;
           }
@@ -254,7 +255,10 @@ export default function SheetOrdersView({
             return false;
           });
 
-          if (!exists && incomingOrderNum) {
+          if (
+            !exists &&
+            (incomingOrderNum || incoming.customer || incoming.name)
+          ) {
             // Helper to parse product items from string/array
             let parsedItems = [];
             const rawItemsList = incoming.items || incoming.products;

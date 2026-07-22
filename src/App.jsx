@@ -141,11 +141,31 @@ export default function App() {
   }, []);
 
   const handleUpdateSheetOrders = async (newSheetOrders) => {
+    // Identify items that were in previous sheetOrders state but were removed in newSheetOrders
+    const removedItems = sheetOrders.filter((oldItem) => {
+      const oldId = String(oldItem.id || oldItem.orderId || "")
+        .trim()
+        .toLowerCase();
+      return !newSheetOrders.some((newItem) => {
+        const newId = String(newItem.id || newItem.orderId || "")
+          .trim()
+          .toLowerCase();
+        return oldId && newId && oldId === newId;
+      });
+    });
+
     setSheetOrders(newSheetOrders);
     setStoredSheetOrders(newSheetOrders);
+
     try {
       for (const item of newSheetOrders) {
         await dbSaveSheetOrder(item);
+      }
+      for (const removed of removedItems) {
+        const removeId = removed.id || removed.orderId;
+        if (removeId) {
+          await dbDeleteSheetOrder(removeId);
+        }
       }
     } catch (err) {
       console.error("Failed to sync sheet orders with Firestore:", err);

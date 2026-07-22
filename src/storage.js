@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 const STORAGE_KEYS = {
   PRODUCTS: "cms_pos_products",
   EXPENSES: "cms_pos_expenses",
