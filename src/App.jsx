@@ -11,6 +11,7 @@ import {
   Calendar,
   Sparkles,
   RefreshCw,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import {
@@ -20,6 +21,8 @@ import {
   setStoredExpenses,
   getStoredInvoices,
   setStoredInvoices,
+  getStoredSheetOrders,
+  setStoredSheetOrders,
   getStoredNextInv,
   setStoredNextInv,
   getStoredNextProd,
@@ -28,12 +31,14 @@ import {
   importBackupData,
   INITIAL_PRODUCTS,
   INITIAL_EXPENSES,
+  INITIAL_SHEET_ORDERS,
 } from "./storage";
 
 import {
   syncProducts,
   syncExpenses,
   syncInvoices,
+  syncSheetOrders,
   syncCounters,
   dbSaveProduct,
   dbDeleteProduct,
@@ -41,6 +46,8 @@ import {
   dbDeleteExpense,
   dbSaveInvoice,
   dbDeleteInvoice,
+  dbSaveSheetOrder,
+  dbDeleteSheetOrder,
   dbSaveCounters,
   dbImportBackup,
   seedInitialDataIfEmpty,
@@ -51,6 +58,7 @@ import InventoryView from "./components/InventoryView";
 import ExpensesView from "./components/ExpensesView";
 import InvoicesView from "./components/InvoicesView";
 import PLView from "./components/PLView";
+import SheetOrdersView from "./components/SheetOrdersView";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("pos");
@@ -59,6 +67,7 @@ export default function App() {
   const [products, setProducts] = useState(getStoredProducts);
   const [expenses, setExpenses] = useState(getStoredExpenses);
   const [invoices, setInvoices] = useState(getStoredInvoices);
+  const [sheetOrders, setSheetOrders] = useState(getStoredSheetOrders);
   const [nextInv, setNextInv] = useState(getStoredNextInv);
   const [nextProd, setNextProd] = useState(getStoredNextProd);
 
@@ -78,6 +87,10 @@ export default function App() {
   useEffect(() => {
     setStoredInvoices(invoices);
   }, [invoices]);
+
+  useEffect(() => {
+    setStoredSheetOrders(sheetOrders);
+  }, [sheetOrders]);
 
   useEffect(() => {
     setStoredNextInv(nextInv);
@@ -105,6 +118,10 @@ export default function App() {
       setInvoices(dbInvoices);
     });
 
+    const unsubscribeSheetOrders = syncSheetOrders((dbSheetOrders) => {
+      setSheetOrders(dbSheetOrders || []);
+    });
+
     const unsubscribeCounters = syncCounters((counters) => {
       if (typeof counters.nextInv === "number") {
         setNextInv(counters.nextInv);
@@ -118,9 +135,22 @@ export default function App() {
       unsubscribeProducts();
       unsubscribeExpenses();
       unsubscribeInvoices();
+      unsubscribeSheetOrders();
       unsubscribeCounters();
     };
   }, []);
+
+  const handleUpdateSheetOrders = async (newSheetOrders) => {
+    setSheetOrders(newSheetOrders);
+    setStoredSheetOrders(newSheetOrders);
+    try {
+      for (const item of newSheetOrders) {
+        await dbSaveSheetOrder(item);
+      }
+    } catch (err) {
+      console.error("Failed to sync sheet orders with Firestore:", err);
+    }
+  };
 
   // Sync actions to write changes to Firestore
   const handleUpdateProducts = async (newProducts) => {
@@ -339,6 +369,23 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setActiveTab("sheet-orders")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-display font-medium flex items-center gap-1.5 transition-all cursor-pointer relative ${
+              activeTab === "sheet-orders"
+                ? "bg-[#CFB050]/15 text-[#CFB050] font-semibold border-b-2 border-[#CFB050]"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <FileSpreadsheet size={13} />
+            <span className="hidden sm:inline">Sheet Orders</span>
+            {sheetOrders.filter((o) => o.status === "Pending").length > 0 && (
+              <span className="px-1.5 py-0.2 text-[9px] font-mono font-bold bg-amber-500 text-black rounded-full">
+                {sheetOrders.filter((o) => o.status === "Pending").length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab("pl")}
             className={`px-3 py-1.5 rounded-lg text-xs font-display font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "pl"
@@ -426,6 +473,19 @@ export default function App() {
                 invoices={invoices}
                 onDeleteInvoice={handleDeleteInvoice}
                 products={products}
+              />
+            )}
+
+            {activeTab === "sheet-orders" && (
+              <SheetOrdersView
+                sheetOrders={sheetOrders}
+                onUpdateSheetOrders={handleUpdateSheetOrders}
+                products={products}
+                onUpdateProducts={handleUpdateProducts}
+                onAddInvoice={handleAddInvoice}
+                nextInv={nextInv}
+                onUpdateNextInv={handleUpdateNextInv}
+                onShowToast={showToast}
               />
             )}
 

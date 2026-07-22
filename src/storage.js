@@ -92,6 +92,28 @@ export const INITIAL_EXPENSES = [
     amt: 15000,
   },
 ];
+export const INITIAL_SHEET_ORDERS = [];
+
+export function getStoredSheetOrders() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.SHEET_ORDERS);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((o) => o.id !== "GSO-101" && o.id !== "GSO-102");
+  } catch (e) {
+    console.error("Error reading sheet orders from localStorage", e);
+    return [];
+  }
+}
+
+export function setStoredSheetOrders(orders) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SHEET_ORDERS, JSON.stringify(orders));
+  } catch (e) {
+    console.error("Error writing sheet orders to localStorage", e);
+  }
+}
 
 export function getStoredProducts() {
   try {

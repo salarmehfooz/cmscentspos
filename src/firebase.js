@@ -35,7 +35,61 @@ export const db = initializeFirestore(
 const productsCol = collection(db, "products");
 const expensesCol = collection(db, "expenses");
 const invoicesCol = collection(db, "invoices");
+const sheetOrdersCol = collection(db, "sheetOrders");
 const configDocRef = doc(db, "config", "counters");
+
+/**
+ * Standard error handler for Firestore operations
+ */
+function handleFirestoreError(error, operationType, path) {
+  const errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    operationType,
+    path,
+  };
+  console.error("Firestore Error: ", JSON.stringify(errInfo));
+  return errInfo;
+}
+
+/**
+ * Sync Sheet Orders in real-time
+ */
+export function syncSheetOrders(onUpdate, onError) {
+  return onSnapshot(
+    sheetOrdersCol,
+    (snapshot) => {
+      const orders = [];
+      snapshot.forEach((docSnap) => {
+        orders.push(docSnap.data());
+      });
+      // Sort orders by ID / date descending
+      orders.sort((a, b) =>
+        (b.orderId || b.id).localeCompare(a.orderId || a.id),
+      );
+      onUpdate(orders);
+    },
+    (err) => {
+      handleFirestoreError(err, "list", "sheetOrders");
+      if (onError) onError(err);
+    },
+  );
+}
+
+/**
+ * Save / Update a Single Sheet Order
+ */
+export async function dbSaveSheetOrder(order) {
+  const docRef = doc(db, "sheetOrders", String(order.id || order.orderId));
+  await setDoc(docRef, order, { merge: true });
+}
+
+/**
+ * Delete a Single Sheet Order
+ */
+export async function dbDeleteSheetOrder(orderId) {
+  const docRef = doc(db, "sheetOrders", String(orderId));
+  await deleteDoc(docRef);
+}
 
 /**
  * Sync Products in real-time

@@ -9,11 +9,23 @@
         "name": { "type": "string", "description": "Fragrance name" },
         "cat": { "type": "string", "description": "Category EDP/EDT etc" },
         "size": { "type": "string", "description": "Volume size, e.g. 50ml" },
-        "icon": { "type": "string", "description": "Emoji representing the product" },
+        "icon": {
+          "type": "string",
+          "description": "Emoji representing the product"
+        },
         "cost": { "type": "number", "description": "Manufacture cost in PKR" },
-        "price": { "type": "number", "description": "Regular retail price in PKR" },
-        "discountPrice": { "type": "number", "description": "Discount retail price in PKR" },
-        "stock": { "type": "number", "description": "Current inventory stock level" }
+        "price": {
+          "type": "number",
+          "description": "Regular retail price in PKR"
+        },
+        "discountPrice": {
+          "type": "number",
+          "description": "Discount retail price in PKR"
+        },
+        "stock": {
+          "type": "number",
+          "description": "Current inventory stock level"
+        }
       },
       "required": ["id", "name", "price", "stock"]
     },
@@ -57,7 +69,10 @@
         "discount": { "type": "number" },
         "tax": { "type": "number" },
         "total": { "type": "number" },
-        "cogs": { "type": "number", "description": "Aggregate cost of goods sold" },
+        "cogs": {
+          "type": "number",
+          "description": "Aggregate cost of goods sold"
+        },
         "notes": { "type": "string" }
       },
       "required": ["id", "date", "items", "total", "cogs"]
@@ -69,6 +84,23 @@
       "properties": {
         "nextInv": { "type": "number" },
         "nextProd": { "type": "number" }
+      }
+    },
+    "SheetOrder": {
+      "title": "SheetOrder",
+      "description": "Orders fetched from Google Sheets or created for online fulfillment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "date": { "type": "string" },
+        "customer": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" }
       }
     }
   },
@@ -84,6 +116,10 @@
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
       "description": "Customer order invoices"
+    },
+    "/sheetOrders/{sheetOrderId}": {
+      "schema": "SheetOrder",
+      "description": "Online sheet orders"
     },
     "/config/counters": {
       "schema": "Config",
