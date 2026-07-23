@@ -23,6 +23,167 @@ import {
 import ReceiptModal from "./ReceiptModal";
 import { addDeletedOrderId, getDeletedOrderIds } from "../storage";
 
+/**
+ * Helper to robustly parse product items from string or array format from Google Sheets / POS
+ */
+function parseOrderProducts(rawInput, catalogProducts = []) {
+  let parsedItems = [];
+
+  const matchCatalogProduct = (cleanName, defaultQty = 1, rawPart = "") => {
+    const cNameLower = cleanName.toLowerCase().trim();
+
+    // 1. Exact name match
+    let matched = catalogProducts.find(
+      (p) => (p.name || "").toLowerCase().trim() === cNameLower,
+    );
+
+    // 2. Inclusion/Substring match if exact match fails
+    if (!matched && cNameLower) {
+      matched = catalogProducts.find((p) => {
+        const pNameLower = (p.name || "").toLowerCase().trim();
+        return (
+          pNameLower &&
+          (cNameLower.includes(pNameLower) || pNameLower.includes(cNameLower))
+        );
+      });
+    }
+
+    // 3. Word overlap match
+    if (!matched && cNameLower) {
+      const cWords = cNameLower.split(/\s+/).filter((w) => w.length > 2);
+      matched = catalogProducts.find((p) => {
+        const pWords = (p.name || "")
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 2);
+        return cWords.some((cw) =>
+          pWords.some((pw) => cw === pw || cw.includes(pw) || pw.includes(cw)),
+        );
+      });
+    }
+
+    const itemQty = Math.max(1, defaultQty);
+
+    if (matched) {
+      const activePrice =
+        matched.discountPrice && matched.discountPrice > 0
+          ? matched.discountPrice
+          : matched.price;
+      return {
+        id: matched.id,
+        productId: matched.id,
+        name: matched.name,
+        size: matched.size || "50ml",
+        price: activePrice || 3200,
+        cost: matched.cost || 1800,
+        qty: itemQty,
+      };
+    } else {
+      return {
+        id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        productId: null,
+        name: cleanName || rawPart || "Perfume EDP",
+        size: "50ml",
+        price: 3200,
+        cost: 1800,
+        qty: itemQty,
+      };
+    }
+  };
+
+  const parseStringPart = (strPart, itemQtyOverride = null) => {
+    if (!strPart || typeof strPart !== "string") return [];
+
+    // Split by delimiters: comma, newline, semicolon, plus, pipe
+    const subParts = strPart
+      .split(/,|\n|;|\||\+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const results = [];
+
+    for (const part of subParts) {
+      let qty = itemQtyOverride || 1;
+      let cleanPart = part;
+
+      const bracketMatch = part.match(/[\(\[](\d+)[\)\]]/);
+      const xMatch = part.match(/(\d+)\s*x|x\s*(\d+)/i);
+      const startNumMatch = part.match(/^(\d+)\s+[a-zA-Z]/);
+
+      if (bracketMatch) {
+        qty = parseInt(bracketMatch[1], 10) || qty;
+        cleanPart = part.replace(/[\(\[]\d+[\)\]]/g, "").trim();
+      } else if (xMatch) {
+        qty = parseInt(xMatch[1] || xMatch[2], 10) || qty;
+        cleanPart = part.replace(/(\d+)\s*x|x\s*(\d+)/gi, "").trim();
+      } else if (startNumMatch) {
+        qty = parseInt(startNumMatch[1], 10) || qty;
+        cleanPart = part.replace(/^\d+\s+/, "").trim();
+      }
+
+      if (cleanPart) {
+        results.push(matchCatalogProduct(cleanPart, qty, part));
+      }
+    }
+    return results;
+  };
+
+  if (Array.isArray(rawInput) && rawInput.length > 0) {
+    for (const item of rawInput) {
+      if (typeof item === "string") {
+        parsedItems.push(...parseStringPart(item));
+      } else if (item && typeof item === "object") {
+        const rawName = String(
+          item.name || item.product || item.title || "",
+        ).trim();
+        const itemQty = item.qty || item.quantity || null;
+
+        if (
+          rawName.includes(",") ||
+          rawName.includes("\n") ||
+          rawName.includes(";") ||
+          rawName.includes("+")
+        ) {
+          parsedItems.push(...parseStringPart(rawName, itemQty));
+        } else {
+          let qty = itemQty || 1;
+          let cleanName = rawName;
+          const bracketMatch = rawName.match(/[\(\[](\d+)[\)\]]/);
+          const xMatch = rawName.match(/(\d+)\s*x|x\s*(\d+)/i);
+          if (bracketMatch) {
+            qty = parseInt(bracketMatch[1], 10) || qty;
+            cleanName = rawName.replace(/[\(\[]\d+[\)\]]/g, "").trim();
+          } else if (xMatch) {
+            qty = parseInt(xMatch[1] || xMatch[2], 10) || qty;
+            cleanName = rawName.replace(/(\d+)\s*x|x\s*(\d+)/gi, "").trim();
+          }
+          parsedItems.push(
+            matchCatalogProduct(cleanName || rawName, qty, rawName),
+          );
+        }
+      }
+    }
+  } else if (typeof rawInput === "string" && rawInput.trim()) {
+    parsedItems.push(...parseStringPart(rawInput));
+  }
+
+  if (parsedItems.length === 0 && catalogProducts.length > 0) {
+    parsedItems = [
+      {
+        id: catalogProducts[0].id,
+        productId: catalogProducts[0].id,
+        name: catalogProducts[0].name,
+        size: catalogProducts[0].size || "50ml",
+        price:
+          catalogProducts[0].discountPrice || catalogProducts[0].price || 3200,
+        cost: catalogProducts[0].cost || 1800,
+        qty: 1,
+      },
+    ];
+  }
+
+  return parsedItems;
+}
+
 export default function SheetOrdersView({
   sheetOrders = [],
   onUpdateSheetOrders,
@@ -260,103 +421,13 @@ export default function SheetOrdersView({
             (incomingOrderNum || incoming.customer || incoming.name)
           ) {
             // Helper to parse product items from string/array
-            let parsedItems = [];
-            const rawItemsList = incoming.items || incoming.products;
-            if (Array.isArray(rawItemsList) && rawItemsList.length > 0) {
-              parsedItems = rawItemsList.map((item) => {
-                const rawName = String(item.name || "").trim();
-                let qty = item.qty || 1;
-                const qtyMatch = rawName.match(
-                  /\((\d+)\)$|(\d+)\s*x|x\s*(\d+)/i,
-                );
-                if (qtyMatch) {
-                  qty = parseInt(
-                    qtyMatch[1] || qtyMatch[2] || qtyMatch[3] || "1",
-                    10,
-                  );
-                }
-                const cleanName = rawName
-                  .replace(/\(\d+\)$|(\d+)\s*x|x\s*(\d+)/gi, "")
-                  .trim();
-                const matched = products.find((p) => {
-                  const pName = (p.name || "").toLowerCase();
-                  const cName = cleanName.toLowerCase();
-                  return (
-                    pName === cName ||
-                    cName.includes(pName) ||
-                    pName.includes(cName)
-                  );
-                });
-
-                return {
-                  id: matched?.id || item.id || Date.now(),
-                  name: matched?.name || cleanName || rawName || "Perfume EDP",
-                  size: matched?.size || item.size || "50ml",
-                  price:
-                    item.price ||
-                    matched?.discountPrice ||
-                    matched?.price ||
-                    3200,
-                  cost: matched?.cost || 1800,
-                  qty: qty,
-                };
-              });
-            } else {
-              const rawProd =
-                incoming.products ||
-                incoming.productsRaw ||
-                incoming.product ||
-                "";
-              if (rawProd) {
-                const str = String(rawProd).trim();
-                const parts = str
-                  .split(/,|\n|;/)
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-                parts.forEach((part) => {
-                  let qty = 1;
-                  const qtyMatch = part.match(/(\d+)\s*x|x\s*(\d+)|\((\d+)\)/i);
-                  if (qtyMatch) {
-                    qty = parseInt(
-                      qtyMatch[1] || qtyMatch[2] || qtyMatch[3] || "1",
-                      10,
-                    );
-                  }
-                  const cleanName = part
-                    .replace(/(\d+)\s*x|x\s*(\d+)|\((\d+)\)/gi, "")
-                    .trim();
-                  const matched =
-                    products.find(
-                      (p) =>
-                        (p.name || "").toLowerCase() ===
-                        cleanName.toLowerCase(),
-                    ) || products[0];
-
-                  parsedItems.push({
-                    id: matched?.id || Date.now(),
-                    name: cleanName || matched?.name || "Perfume EDP",
-                    size: matched?.size || "50ml",
-                    price: matched?.discountPrice || matched?.price || 3200,
-                    cost: matched?.cost || 1800,
-                    qty: qty,
-                  });
-                });
-              }
-            }
-
-            if (parsedItems.length === 0 && products.length > 0) {
-              parsedItems = [
-                {
-                  id: products[0]?.id || 1,
-                  name: products[0]?.name || "Tempest Noir",
-                  size: products[0]?.size || "50ml",
-                  price:
-                    products[0]?.discountPrice || products[0]?.price || 3200,
-                  cost: products[0]?.cost || 1800,
-                  qty: 1,
-                },
-              ];
-            }
+            const rawItemsList =
+              incoming.items ||
+              incoming.products ||
+              incoming.productsRaw ||
+              incoming.product ||
+              "";
+            const parsedItems = parseOrderProducts(rawItemsList, products);
 
             const customerName =
               incoming.customer ||
@@ -492,30 +563,52 @@ export default function SheetOrdersView({
       return;
     }
 
-    // 1. Prepare invoice items and match against existing inventory
+    // Parse order items to ensure every item in multi-item order is matched to catalog products
+    const parsedOrderItems = parseOrderProducts(
+      order.items && order.items.length > 0
+        ? order.items
+        : order.products || order.productsRaw || "",
+      products,
+    );
+
     const invoiceItems = [];
     let updatedProducts = [...products];
     let totalCogs = 0;
     let orderSubtotal = 0;
 
-    for (const item of order.items || []) {
-      // Find matching product in catalog
-      let matchedProd = updatedProducts.find(
-        (p) =>
-          p.id === item.id ||
-          (p.name || "").toLowerCase() === (item.name || "").toLowerCase(),
-      );
+    for (const item of parsedOrderItems) {
+      const itemQty = Math.max(1, Number(item.qty) || 1);
 
-      if (!matchedProd && updatedProducts.length > 0) {
-        matchedProd = updatedProducts[0]; // fallback
+      // Find matching product in catalog
+      let matchedProd = updatedProducts.find((p) => {
+        if (!p) return false;
+        if (item.productId && p.id === item.productId) return true;
+        if (item.id && p.id === item.id) return true;
+        const pName = (p.name || "").toLowerCase().trim();
+        const iName = (item.name || "").toLowerCase().trim();
+        return pName && iName && pName === iName;
+      });
+
+      if (!matchedProd) {
+        matchedProd = updatedProducts.find((p) => {
+          if (!p) return false;
+          const pName = (p.name || "").toLowerCase().trim();
+          const iName = (item.name || "").toLowerCase().trim();
+          return (
+            pName && iName && (pName.includes(iName) || iName.includes(pName))
+          );
+        });
       }
 
-      const itemQty = Math.max(1, item.qty || 1);
       const itemPrice =
-        item.price || matchedProd?.discountPrice || matchedProd?.price || 3000;
-      const itemCost = item.cost || matchedProd?.cost || 1500;
-      const itemName = item.name || matchedProd?.name || "Perfume EDP";
-      const itemSize = item.size || matchedProd?.size || "50ml";
+        item.price ||
+        (matchedProd?.discountPrice && matchedProd?.discountPrice > 0
+          ? matchedProd.discountPrice
+          : matchedProd?.price) ||
+        3200;
+      const itemCost = item.cost || matchedProd?.cost || 1800;
+      const itemName = matchedProd?.name || item.name || "Perfume EDP";
+      const itemSize = matchedProd?.size || item.size || "50ml";
 
       totalCogs += itemCost * itemQty;
       orderSubtotal += itemPrice * itemQty;
@@ -524,7 +617,7 @@ export default function SheetOrdersView({
       if (matchedProd) {
         updatedProducts = updatedProducts.map((p) => {
           if (p.id === matchedProd.id) {
-            const newStock = Math.max(0, p.stock - itemQty);
+            const newStock = Math.max(0, (p.stock || 0) - itemQty);
             return { ...p, stock: newStock };
           }
           return p;
@@ -532,10 +625,10 @@ export default function SheetOrdersView({
       }
 
       invoiceItems.push({
-        id: matchedProd?.id || Date.now(),
+        id: matchedProd?.id || item.id || Date.now(),
         name: itemName,
         size: itemSize,
-        cat: "EDP",
+        cat: matchedProd?.cat || "EDP",
         icon: matchedProd?.icon || "✨",
         price: itemPrice,
         cost: itemCost,
@@ -553,6 +646,9 @@ export default function SheetOrdersView({
       month: "short",
       year: "numeric",
     });
+
+    const finalTotal =
+      parseFloat(order.total) > 0 ? parseFloat(order.total) : orderSubtotal;
 
     const newInvoice = {
       id: invoiceId,
@@ -604,6 +700,7 @@ export default function SheetOrdersView({
         orderFound = true;
         return {
           ...o,
+          items: parsedOrderItems,
           status: "Confirmed",
           invoiceId: newInvoice.id,
           confirmedAt: new Date().toLocaleTimeString("en-PK", {
@@ -618,6 +715,7 @@ export default function SheetOrdersView({
     if (!orderFound) {
       updatedSheetOrders.unshift({
         ...order,
+        items: parsedOrderItems,
         status: "Confirmed",
         invoiceId: newInvoice.id,
         confirmedAt: new Date().toLocaleTimeString("en-PK", {
