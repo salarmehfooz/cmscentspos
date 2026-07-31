@@ -16,5 +16,8 @@ service cloud.firestore {
     match /config/counters {
       allow read, write: if true;
     }
+    match /config/security {
+      allow read, write: if true;
+    }
   }
 }

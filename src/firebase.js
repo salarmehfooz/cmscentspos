@@ -37,6 +37,7 @@ const expensesCol = collection(db, "expenses");
 const invoicesCol = collection(db, "invoices");
 const sheetOrdersCol = collection(db, "sheetOrders");
 const configDocRef = doc(db, "config", "counters");
+const securityDocRef = doc(db, "config", "security");
 
 /**
  * Standard error handler for Firestore operations
@@ -226,10 +227,42 @@ export async function dbDeleteInvoice(invoiceId) {
 }
 
 /**
+ * Sync Security Password in real-time from Firebase
+ */
+export function syncPassword(onUpdate, onError) {
+  return onSnapshot(
+    securityDocRef,
+    (docSnap) => {
+      if (docSnap.exists() && docSnap.data().password) {
+        onUpdate(docSnap.data().password);
+      }
+    },
+    (err) => {
+      console.error("Firestore syncPassword error:", err);
+      if (onError) onError(err);
+    },
+  );
+}
+
+/**
  * Update global system counters
  */
 export async function dbSaveCounters(nextInv, nextProd) {
   await setDoc(configDocRef, { nextInv, nextProd }, { merge: true });
+}
+
+/**
+ * Save / Update System Password in Firebase
+ */
+export async function dbSavePassword(password) {
+  await setDoc(
+    securityDocRef,
+    {
+      password,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
 }
 
 /**

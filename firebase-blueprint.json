@@ -86,6 +86,21 @@
         "nextProd": { "type": "number" }
       }
     },
+    "Security": {
+      "title": "Security",
+      "description": "System access control and encrypted pin settings",
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string",
+          "description": "System access password"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when password was updated"
+        }
+      }
+    },
     "SheetOrder": {
       "title": "SheetOrder",
       "description": "Orders fetched from Google Sheets or created for online fulfillment",
@@ -124,6 +139,10 @@
     "/config/counters": {
       "schema": "Config",
       "description": "Global ID increment keys"
+    },
+    "/config/security": {
+      "schema": "Security",
+      "description": "System access password settings"
     }
   }
 }

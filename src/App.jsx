@@ -56,6 +56,8 @@ import {
   dbSaveCounters,
   dbImportBackup,
   seedInitialDataIfEmpty,
+  syncPassword,
+  dbSavePassword,
 } from "./firebase";
 
 import POSView from "./components/POSView";
@@ -149,12 +151,20 @@ export default function App() {
       }
     });
 
+    const unsubscribePassword = syncPassword((pwd) => {
+      if (pwd) {
+        setAppPassword(pwd);
+        setStoredPassword(pwd);
+      }
+    });
+
     return () => {
       unsubscribeProducts();
       unsubscribeExpenses();
       unsubscribeInvoices();
       unsubscribeSheetOrders();
       unsubscribeCounters();
+      unsubscribePassword();
     };
   }, []);
 
@@ -353,9 +363,14 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
-  const handleChangePassword = (newPassword) => {
+  const handleChangePassword = async (newPassword) => {
     setAppPassword(newPassword);
     setStoredPassword(newPassword);
+    try {
+      await dbSavePassword(newPassword);
+    } catch (err) {
+      console.error("Failed to save password to Firebase Firestore:", err);
+    }
   };
 
   return (
