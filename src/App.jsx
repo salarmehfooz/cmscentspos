@@ -12,6 +12,9 @@ import {
   Sparkles,
   RefreshCw,
   FileSpreadsheet,
+  Lock,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
@@ -27,6 +30,8 @@ import {
   setStoredNextInv,
   getStoredNextProd,
   setStoredNextProd,
+  getStoredPassword,
+  setStoredPassword,
   exportBackupData,
   importBackupData,
   INITIAL_PRODUCTS,
@@ -59,9 +64,22 @@ import ExpensesView from "./components/ExpensesView";
 import InvoicesView from "./components/InvoicesView";
 import PLView from "./components/PLView";
 import SheetOrdersView from "./components/SheetOrdersView";
+import LockScreen from "./components/LockScreen";
+import ChangePasswordModal from "./components/ChangePasswordModal";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("pos");
+
+  // Security & Password Access State
+  const [appPassword, setAppPassword] = useState(getStoredPassword);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return sessionStorage.getItem("cms_pos_authenticated") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
+  const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
 
   // Load state from local storage on initial mount, which then stays in sync with Firestore
   const [products, setProducts] = useState(getStoredProducts);
@@ -320,8 +338,45 @@ export default function App() {
     e.target.value = "";
   };
 
+  const handleAuthenticate = () => {
+    try {
+      sessionStorage.setItem("cms_pos_authenticated", "true");
+    } catch (e) {}
+    setIsAuthenticated(true);
+    showToast("System unlocked! Welcome to C·M Scents POS");
+  };
+
+  const handleLockApp = () => {
+    try {
+      sessionStorage.removeItem("cms_pos_authenticated");
+    } catch (e) {}
+    setIsAuthenticated(false);
+  };
+
+  const handleChangePassword = (newPassword) => {
+    setAppPassword(newPassword);
+    setStoredPassword(newPassword);
+  };
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#0A0A0D] text-gray-200 font-sans antialiased selection:bg-[#CFB050]/20 selection:text-[#CFB050]">
+      {/* Password Lock Screen Layer */}
+      {!isAuthenticated && (
+        <LockScreen
+          onAuthenticate={handleAuthenticate}
+          appPassword={appPassword}
+        />
+      )}
+
+      {/* Change Password Security Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePwdOpen}
+        onClose={() => setIsChangePwdOpen(false)}
+        currentAppPassword={appPassword}
+        onChangePassword={handleChangePassword}
+        onShowToast={showToast}
+      />
+
       {/* Premium Top Navigation Header */}
       <nav className="h-16 border-b border-white/5 bg-[#0D0D12] flex items-center justify-between px-4 sm:px-6 flex-shrink-0 z-10 relative">
         <div className="flex items-center gap-2.5">
@@ -425,8 +480,25 @@ export default function App() {
             {dateStr || "Loading clock..."}
           </span>
 
-          {/* Backup Restore controls */}
-          <div className="flex items-center gap-1">
+          {/* Backup Restore & Security controls */}
+          <div className="flex items-center gap-1.5 pl-2 border-l border-white/10">
+            <button
+              onClick={() => setIsChangePwdOpen(true)}
+              title="Change Security Password / PIN"
+              className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all cursor-pointer border border-white/5 flex items-center gap-1.5 text-xs font-medium"
+            >
+              <KeyRound size={13} className="text-[#CFB050]" />
+              <span className="hidden md:inline">Password</span>
+            </button>
+
+            <button
+              onClick={handleLockApp}
+              title="Lock POS System"
+              className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 rounded-lg transition-all cursor-pointer border border-amber-500/20 flex items-center gap-1"
+            >
+              <Lock size={14} />
+            </button>
+
             <button
               onClick={handleExportBackup}
               title="Download database JSON backup"

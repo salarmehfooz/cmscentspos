@@ -6,7 +6,27 @@ const STORAGE_KEYS = {
   NEXT_PROD: "cms_pos_next_prod",
   SHEET_ORDERS: "cms_pos_sheet_orders",
   DELETED_ORDERS: "cms_pos_deleted_orders",
+  PASSWORD: "cms_pos_password",
 };
+
+export const DEFAULT_PASSWORD = "1234";
+
+export function getStoredPassword() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.PASSWORD);
+    return data ? data : DEFAULT_PASSWORD;
+  } catch (e) {
+    return DEFAULT_PASSWORD;
+  }
+}
+
+export function setStoredPassword(pwd) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PASSWORD, pwd);
+  } catch (e) {
+    console.error("Error writing password to localStorage", e);
+  }
+}
 
 export const INITIAL_PRODUCTS = [
   {

@@ -163,6 +163,39 @@ app.post("/api/sheet-orders/confirm", async (req, res) => {
   }
 });
 
+// API Route: Mark Order as Shipped Callback to Google Sheet
+app.post("/api/sheet-orders/ship", async (req, res) => {
+  const sheetUrl =
+    process.env.SHEET_ORDERS_URL || process.env.VITE_SHEET_ORDERS_URL;
+  const { orderId, invoiceId, status, shippedAt } = req.body;
+
+  if (!sheetUrl) {
+    return res
+      .status(400)
+      .json({ success: false, message: "SHEET_ORDERS_URL not set" });
+  }
+
+  try {
+    const postResult = await fetchFromSheetUrl(sheetUrl, "POST", {
+      action: "shipOrder",
+      orderId,
+      invoiceId,
+      status: status || "Shipped",
+      shippedAt: shippedAt || new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.json({
+      success: true,
+      message: `Order #${orderId} marked as shipped on Google Sheet`,
+      sheetResponse: postResult.rawText,
+    });
+  } catch (err: any) {
+    console.error("Ship order error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // API Route: Delete Order Callback to Google Sheet
 app.post("/api/sheet-orders/delete", async (req, res) => {
   const DEFAULT_SHEET_URL =
@@ -175,12 +208,10 @@ app.post("/api/sheet-orders/delete", async (req, res) => {
   const targetId = orderId || id;
 
   if (!targetId) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "orderId or id is required for deletion",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "orderId or id is required for deletion",
+    });
   }
 
   try {

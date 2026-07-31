@@ -19,6 +19,7 @@ import {
   X,
   Sparkles,
   Trash2,
+  Truck,
 } from "lucide-react";
 import ReceiptModal from "./ReceiptModal";
 import { addDeletedOrderId, getDeletedOrderIds } from "../storage";
@@ -535,9 +536,17 @@ export default function SheetOrdersView({
 
       if (!matchesSearch) return false;
       if (statusFilter === "All") return true;
-      if (statusFilter === "Pending") return order.status === "Pending";
+      if (statusFilter === "Pending")
+        return (
+          order.status === "Pending" ||
+          !order.status ||
+          (order.status !== "Confirmed" &&
+            order.status !== "Invoiced" &&
+            order.status !== "Shipped")
+        );
       if (statusFilter === "Confirmed")
         return order.status === "Confirmed" || order.status === "Invoiced";
+      if (statusFilter === "Shipped") return order.status === "Shipped";
       return true;
     });
   }, [realOrders, search, statusFilter]);
@@ -546,13 +555,27 @@ export default function SheetOrdersView({
   const stats = useMemo(() => {
     const totalCount = realOrders.length;
     const pendingCount = realOrders.filter(
-      (o) => o.status === "Pending",
+      (o) =>
+        o.status === "Pending" ||
+        !o.status ||
+        (o.status !== "Confirmed" &&
+          o.status !== "Invoiced" &&
+          o.status !== "Shipped"),
     ).length;
     const confirmedCount = realOrders.filter(
       (o) => o.status === "Confirmed" || o.status === "Invoiced",
     ).length;
+    const shippedCount = realOrders.filter(
+      (o) => o.status === "Shipped",
+    ).length;
     const totalRevenue = realOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    return { totalCount, pendingCount, confirmedCount, totalRevenue };
+    return {
+      totalCount,
+      pendingCount,
+      confirmedCount,
+      shippedCount,
+      totalRevenue,
+    };
   }, [realOrders]);
 
   // Main Action: Confirm Order, Deduct Inventory & Generate POS Invoice
@@ -750,6 +773,77 @@ export default function SheetOrdersView({
     setActiveReceiptInvoice(newInvoice);
   };
 
+  // Action: Mark Confirmed Order as Shipped
+  const handleMarkAsShipped = (order) => {
+    const targetId = String(order.id || "").trim();
+    const targetOrderId = String(
+      order.orderId || order.orderNumber || "",
+    ).trim();
+    const shippedTime = new Date().toLocaleString("en-PK", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    let orderFound = false;
+    const updatedSheetOrders = sheetOrders.map((o) => {
+      const oId = String(o.id || "").trim();
+      const oOrderId = String(o.orderId || o.orderNumber || "").trim();
+      const isMatch =
+        (targetOrderId &&
+          oOrderId &&
+          targetOrderId.toLowerCase() === oOrderId.toLowerCase()) ||
+        (targetId && oId && targetId.toLowerCase() === oId.toLowerCase()) ||
+        (targetOrderId &&
+          oId &&
+          targetOrderId.toLowerCase() === oId.toLowerCase()) ||
+        (targetId &&
+          oOrderId &&
+          targetId.toLowerCase() === oOrderId.toLowerCase());
+
+      if (isMatch) {
+        orderFound = true;
+        return {
+          ...o,
+          status: "Shipped",
+          shippedAt: shippedTime,
+        };
+      }
+      return o;
+    });
+
+    if (!orderFound) {
+      updatedSheetOrders.unshift({
+        ...order,
+        status: "Shipped",
+        shippedAt: shippedTime,
+      });
+    }
+
+    onUpdateSheetOrders(updatedSheetOrders);
+
+    // Sync shipped status to Express backend proxy / Google Apps Script
+    try {
+      fetch("/api/sheet-orders/ship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.orderId || order.id,
+          invoiceId: order.invoiceId,
+          status: "Shipped",
+          shippedAt: shippedTime,
+        }),
+      }).catch(() => {});
+    } catch (e) {}
+
+    if (onShowToast) {
+      onShowToast(`Order #${order.orderId || order.id} marked as Shipped! 🚚`);
+    }
+  };
+
   // Add Manual Test Order
   const handleCreateTestOrder = (e) => {
     e.preventDefault();
@@ -861,7 +955,7 @@ export default function SheetOrdersView({
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex flex-col justify-between">
           <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">
             Total Sheet Orders
@@ -876,31 +970,44 @@ export default function SheetOrdersView({
 
         <div className="bg-[#111116] border border-amber-500/20 bg-amber-500/[0.02] rounded-2xl p-4 flex flex-col justify-between">
           <span className="text-[10px] font-mono text-amber-400/90 uppercase tracking-wider block flex items-center justify-between">
-            <span>Pending Confirmation</span>
+            <span>Pending</span>
             <Clock size={12} className="animate-pulse text-amber-400" />
           </span>
           <span className="text-xl sm:text-2xl font-display font-bold text-amber-400 mt-1">
             {stats.pendingCount}
           </span>
           <span className="text-[10px] text-amber-500/70 mt-1 block">
-            Awaiting invoice generation
+            Awaiting confirmation
           </span>
         </div>
 
         <div className="bg-[#111116] border border-emerald-500/20 bg-emerald-500/[0.02] rounded-2xl p-4 flex flex-col justify-between">
           <span className="text-[10px] font-mono text-emerald-400/90 uppercase tracking-wider block flex items-center justify-between">
-            <span>Confirmed &amp; Invoiced</span>
+            <span>Confirmed</span>
             <CheckCircle2 size={12} className="text-emerald-400" />
           </span>
           <span className="text-xl sm:text-2xl font-display font-bold text-emerald-400 mt-1">
             {stats.confirmedCount}
           </span>
           <span className="text-[10px] text-emerald-500/70 mt-1 block">
-            Stock deducted &amp; billed
+            Invoiced &amp; processed
           </span>
         </div>
 
-        <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex flex-col justify-between">
+        <div className="bg-[#111116] border border-blue-500/20 bg-blue-500/[0.02] rounded-2xl p-4 flex flex-col justify-between">
+          <span className="text-[10px] font-mono text-blue-400/90 uppercase tracking-wider block flex items-center justify-between">
+            <span>Shipped</span>
+            <Truck size={12} className="text-blue-400" />
+          </span>
+          <span className="text-xl sm:text-2xl font-display font-bold text-blue-400 mt-1">
+            {stats.shippedCount}
+          </span>
+          <span className="text-[10px] text-blue-500/70 mt-1 block">
+            Dispatched orders
+          </span>
+        </div>
+
+        <div className="bg-[#111116] border border-white/5 rounded-2xl p-4 flex flex-col justify-between col-span-2 sm:col-span-1">
           <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">
             Total Order Volume
           </span>
@@ -937,8 +1044,8 @@ export default function SheetOrdersView({
           )}
         </div>
 
-        <div className="flex gap-1 bg-[#16161E] p-1 rounded-xl border border-white/5 w-full sm:w-auto justify-center">
-          {["All", "Pending", "Confirmed"].map((filter) => (
+        <div className="flex gap-1 bg-[#16161E] p-1 rounded-xl border border-white/5 w-full sm:w-auto justify-center flex-wrap">
+          {["All", "Pending", "Confirmed", "Shipped"].map((filter) => (
             <button
               key={filter}
               onClick={() => setStatusFilter(filter)}
@@ -980,6 +1087,7 @@ export default function SheetOrdersView({
         <div className="space-y-4">
           <AnimatePresence>
             {filteredOrders.map((order) => {
+              const isShipped = order.status === "Shipped";
               const isConfirmed =
                 order.status === "Confirmed" || order.status === "Invoiced";
 
@@ -991,9 +1099,11 @@ export default function SheetOrdersView({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   className={`bg-[#111116] rounded-2xl border transition-all p-5 shadow-lg ${
-                    isConfirmed
-                      ? "border-emerald-500/20 bg-emerald-950/[0.03]"
-                      : "border-amber-500/20 bg-amber-950/[0.03]"
+                    isShipped
+                      ? "border-blue-500/20 bg-blue-950/[0.03]"
+                      : isConfirmed
+                        ? "border-emerald-500/20 bg-emerald-950/[0.03]"
+                        : "border-amber-500/20 bg-amber-950/[0.03]"
                   }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/5 pb-4 mb-4">
@@ -1001,12 +1111,16 @@ export default function SheetOrdersView({
                     <div className="flex items-center gap-3">
                       <div
                         className={`p-2.5 rounded-xl border ${
-                          isConfirmed
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                            : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                          isShipped
+                            ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                            : isConfirmed
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                              : "bg-amber-500/10 border-amber-500/20 text-amber-400"
                         }`}
                       >
-                        {isConfirmed ? (
+                        {isShipped ? (
+                          <Truck size={18} />
+                        ) : isConfirmed ? (
                           <PackageCheck size={18} />
                         ) : (
                           <Clock size={18} className="animate-pulse" />
@@ -1019,19 +1133,26 @@ export default function SheetOrdersView({
                             #{order.orderId || order.id}
                           </span>
                           <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                              isConfirmed
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                              isShipped
+                                ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                : isConfirmed
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                             }`}
                           >
-                            {isConfirmed
-                              ? "Confirmed & Invoiced"
-                              : "Pending Confirmation"}
+                            {isShipped
+                              ? "Shipped"
+                              : isConfirmed
+                                ? "Confirmed & Invoiced"
+                                : "Pending Confirmation"}
                           </span>
                         </div>
                         <span className="text-[10px] text-gray-500 font-mono block mt-0.5">
-                          Order Date: {order.date}
+                          Order Date: {order.date}{" "}
+                          {order.shippedAt
+                            ? `• Shipped: ${order.shippedAt}`
+                            : ""}
                         </span>
                       </div>
                     </div>
@@ -1047,8 +1168,53 @@ export default function SheetOrdersView({
                         </span>
                       </div>
 
-                      {isConfirmed ? (
-                        <div className="flex items-center gap-2">
+                      {isShipped ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-mono font-bold">
+                            {order.invoiceId || "INV-Generated"}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const mockInv = {
+                                id: order.invoiceId || "INV-1001",
+                                date: order.date,
+                                customer: order.customer,
+                                phone: order.phone,
+                                address: order.address,
+                                method: order.paymentMethod,
+                                items: (order.items || []).map((i) => ({
+                                  id: i.id || 1,
+                                  name: i.name,
+                                  size: i.size || "50ml",
+                                  price: i.price,
+                                  qty: i.qty || 1,
+                                  icon: "✨",
+                                })),
+                                sub: order.total,
+                                disc: 0,
+                                total: order.total,
+                              };
+                              setActiveReceiptInvoice(mockInv);
+                            }}
+                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-200 hover:text-white rounded-xl text-xs font-medium flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer"
+                          >
+                            <Printer size={13} />
+                            <span>View Receipt</span>
+                          </button>
+                          <div className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 font-mono">
+                            <Truck size={13} />
+                            <span>Shipped</span>
+                          </div>
+                          <button
+                            onClick={() => setOrderToDelete(order)}
+                            title="Delete Order"
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl text-xs flex items-center justify-center border border-red-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : isConfirmed ? (
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-mono font-bold">
                             {order.invoiceId || "INV-Generated"}
                           </span>
@@ -1081,6 +1247,15 @@ export default function SheetOrdersView({
                             <Printer size={13} />
                             <span>View Receipt</span>
                           </button>
+
+                          <button
+                            onClick={() => handleMarkAsShipped(order)}
+                            className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <Truck size={14} />
+                            <span>Mark as Shipped</span>
+                          </button>
+
                           <button
                             onClick={() => setOrderToDelete(order)}
                             title="Delete Order"
