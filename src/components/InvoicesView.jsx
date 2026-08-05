@@ -649,36 +649,7 @@ export default function InvoicesView({
                     );
                   })()}
 
-                  {/* Bank Transfer Details */}
-                  <div className="mt-4 border border-dashed border-neutral-300 rounded-lg p-2.5 bg-neutral-50 text-[10px] space-y-1">
-                    <p className="font-bold text-neutral-700 uppercase tracking-wider text-center text-[9px] border-b border-dashed border-neutral-200 pb-1 mb-1">
-                      Bank Transfer Details
-                    </p>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Title:</span>
-                      <span className="font-semibold text-neutral-800">
-                        C.M SCENTS
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Bank Name:</span>
-                      <span className="font-semibold text-neutral-800">
-                        Bank Islami
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">Account Number:</span>
-                      <span className="font-mono font-semibold text-neutral-800">
-                        103300685430190
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500">IBAN:</span>
-                      <span className="font-mono font-semibold text-neutral-800 text-[9px]">
-                        PK38BKIP0103300685430190
-                      </span>
-                    </div>
-                  </div>
+                  
 
                   {/* Fine Print Footer */}
                   <div className="text-center text-[10px] text-neutral-400 mt-8 pt-5 border-t border-dashed border-neutral-300 space-y-1">
