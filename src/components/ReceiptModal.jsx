@@ -61,13 +61,13 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                 C·M SCENTS
               </h2>
               <p className="text-xs text-neutral-500 mt-1">
-                Premium Fragrances &amp; Accents
+                Crafted to leave an impression
               </p>
               <p className="text-[10px] text-neutral-500 mt-1">
                 Isra Village, Hala Naka, Hyderabad, Sindh, Pakistan
               </p>
               <p className="text-[10px] text-neutral-400 font-bold mt-0.5">
-                Phone: +92 333 3641997 · www.cmscents.com
+                Phone: +92 333 3641997
               </p>
             </div>
 
@@ -103,6 +103,30 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                 <span>{invoice.method}</span>
               </div>
             </div>
+
+            {/* Applied Deal Banner */}
+            {(invoice.dealDiscount > 0 || invoice.dealName || invoice.deal) && (
+              <div className="bg-[#CFB050]/10 border border-[#CFB050]/30 rounded-lg p-2.5 mb-3 text-xs">
+                <div className="flex items-center justify-between text-[#856404] font-bold">
+                  <span className="flex items-center gap-1">
+                    🏷️ Deal:{" "}
+                    {invoice.dealName ||
+                      invoice.deal?.name ||
+                      "Promotional Deal"}
+                  </span>
+                  {invoice.dealDiscount > 0 && (
+                    <span className="font-mono text-emerald-700">
+                      Save {formatPKR(invoice.dealDiscount)}
+                    </span>
+                  )}
+                </div>
+                {invoice.deal?.details && (
+                  <p className="text-[10px] text-neutral-600 mt-0.5 font-mono">
+                    {invoice.deal.details}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Items table */}
             <div className="space-y-2 mb-4">
@@ -158,8 +182,10 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                   item.originalPrice || dbProduct?.price || item.price;
                 return sum + Math.max(0, original - item.price) * item.qty;
               }, 0);
+              const dealDiscount = invoice.dealDiscount || 0;
               const checkoutDiscount = invoice.disc || 0;
-              const totalDiscount = itemDiscounts + checkoutDiscount;
+              const totalDiscount =
+                itemDiscounts + dealDiscount + checkoutDiscount;
 
               return (
                 <div className="border-t border-dashed border-neutral-300 pt-3 space-y-1.5 text-xs text-neutral-600">
@@ -169,6 +195,19 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                       {Math.round(invoice.sub + itemDiscounts).toLocaleString()}
                     </span>
                   </div>
+
+                  {dealDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-600 font-medium">
+                      <span>
+                        Deal Discount (
+                        {invoice.dealName ||
+                          invoice.deal?.name ||
+                          "Bundle Deal"}
+                        )
+                      </span>
+                      <span>-{Math.round(dealDiscount).toLocaleString()}</span>
+                    </div>
+                  )}
 
                   {itemDiscounts > 0 && (
                     <div className="flex justify-between text-red-500 font-medium">
@@ -187,7 +226,7 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                   )}
 
                   {totalDiscount > 0 && (
-                    <div className="flex justify-between text-red-600 font-bold bg-red-50/50 p-1.5 rounded-md border border-red-100/30">
+                    <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50/70 p-1.5 rounded-md border border-emerald-100">
                       <span>Total Savings / Discount</span>
                       <span>-{Math.round(totalDiscount).toLocaleString()}</span>
                     </div>
@@ -200,8 +239,6 @@ export default function ReceiptModal({ invoice, onClose, products = [] }) {
                 </div>
               );
             })()}
-
-            
 
             <div className="text-center text-[10px] text-neutral-400 mt-6 pt-4 border-t border-dashed border-neutral-300">
               <p>Thank you for choosing C.M Scents</p>

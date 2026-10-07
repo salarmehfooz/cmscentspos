@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -10,6 +12,8 @@ import {
   Printer,
   TrendingUp,
   Trash2,
+  Sparkles,
+  Tag,
 } from "lucide-react";
 
 export default function InvoicesView({
@@ -20,6 +24,7 @@ export default function InvoicesView({
   const [search, setSearch] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState("All");
+  const [dealFilter, setDealFilter] = useState("All"); // 'All' | 'Deals'
 
   // Helper to parse date strings (e.g. "15 Jun 2026") into months
   const parseMonthYear = (dateStr) => {
@@ -84,19 +89,23 @@ export default function InvoicesView({
     );
   }, [invoices]);
 
-  // Search & Month filter
+  // Search & Month & Deal filter
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
       const matchesSearch =
         inv.id.toLowerCase().includes(search.toLowerCase()) ||
         inv.customer.toLowerCase().includes(search.toLowerCase()) ||
-        inv.method.toLowerCase().includes(search.toLowerCase());
+        inv.method.toLowerCase().includes(search.toLowerCase()) ||
+        (inv.dealName &&
+          inv.dealName.toLowerCase().includes(search.toLowerCase()));
 
       if (!matchesSearch) return false;
+      if (dealFilter === "Deals" && !inv.dealName && !(inv.dealDiscount > 0))
+        return false;
       if (selectedMonthFilter === "All") return true;
       return parseMonthYear(inv.date).label === selectedMonthFilter;
     });
-  }, [invoices, search, selectedMonthFilter]);
+  }, [invoices, search, selectedMonthFilter, dealFilter]);
 
   // Group filtered list for visual display
   const groupedInvoices = useMemo(() => {
@@ -161,25 +170,48 @@ export default function InvoicesView({
             className="w-full bg-[#111116] border border-white/5 focus:border-[#CFB050] focus:ring-1 focus:ring-[#CFB050]/20 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 text-xs outline-none transition-all"
           />
         </div>
-        <div className="flex items-center gap-2 bg-[#111116] border border-white/5 rounded-xl px-3.5 py-2.5">
-          <Calendar size={14} className="text-[#CFB050] shrink-0" />
-          <span className="text-[10px] text-gray-500 font-mono uppercase font-semibold shrink-0">
-            Month:
-          </span>
-          <select
-            value={selectedMonthFilter}
-            onChange={(e) => setSelectedMonthFilter(e.target.value)}
-            className="bg-transparent border-none text-[11px] text-white outline-none cursor-pointer pr-4 font-mono font-bold"
-          >
-            <option value="All" className="bg-[#111116]">
-              All Months
-            </option>
-            {sortedMonths.map((m) => (
-              <option key={m} value={m} className="bg-[#111116]">
-                {m}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-[#111116] border border-white/5 rounded-xl px-3.5 py-2.5">
+            <Calendar size={14} className="text-[#CFB050] shrink-0" />
+            <span className="text-[10px] text-gray-500 font-mono uppercase font-semibold shrink-0">
+              Month:
+            </span>
+            <select
+              value={selectedMonthFilter}
+              onChange={(e) => setSelectedMonthFilter(e.target.value)}
+              className="bg-transparent border-none text-[11px] text-white outline-none cursor-pointer pr-4 font-mono font-bold"
+            >
+              <option value="All" className="bg-[#111116]">
+                All Months
               </option>
-            ))}
-          </select>
+              {sortedMonths.map((m) => (
+                <option key={m} value={m} className="bg-[#111116]">
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() =>
+              setDealFilter(dealFilter === "All" ? "Deals" : "All")
+            }
+            className={`px-3 py-2.5 rounded-xl text-[11px] font-mono flex items-center gap-1.5 transition-colors border cursor-pointer ${
+              dealFilter === "Deals"
+                ? "bg-[#CFB050]/20 text-[#CFB050] border-[#CFB050]/40 font-bold"
+                : "bg-[#111116] text-gray-400 border-white/5 hover:text-white"
+            }`}
+          >
+            <Sparkles
+              size={13}
+              className={
+                dealFilter === "Deals" ? "text-[#CFB050]" : "text-gray-500"
+              }
+            />
+            <span>
+              {dealFilter === "Deals" ? "Deals Only" : "Filter Deals"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -230,9 +262,17 @@ export default function InvoicesView({
                         <FileText size={18} />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-sm font-bold text-white block">
-                          {inv.id}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-white">
+                            {inv.id}
+                          </span>
+                          {(inv.dealName || inv.dealDiscount > 0) && (
+                            <span className="text-[10px] bg-[#CFB050]/15 text-[#CFB050] border border-[#CFB050]/30 px-2 py-0.5 rounded-full font-mono font-semibold flex items-center gap-1">
+                              <Sparkles size={10} />
+                              {inv.dealName || inv.deal?.name || "Website Deal"}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] text-gray-400 font-mono mt-0.5 block truncate">
                           {inv.date} · {inv.customer} ·{" "}
                           <span className="text-[#CFB050]">{inv.method}</span> ·{" "}
@@ -378,6 +418,35 @@ export default function InvoicesView({
                   </div>
                 )}
 
+                {/* Applied Deal info banner */}
+                {(selectedInvoice.dealDiscount > 0 ||
+                  selectedInvoice.dealName ||
+                  selectedInvoice.deal) && (
+                  <div className="bg-[#CFB050]/10 border border-[#CFB050]/30 rounded-xl p-3 text-xs">
+                    <div className="flex items-center justify-between text-[#CFB050] font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles size={13} className="text-[#CFB050]" />
+                        <span>
+                          Website Deal:{" "}
+                          {selectedInvoice.dealName ||
+                            selectedInvoice.deal?.name ||
+                            "Promotional Deal"}
+                        </span>
+                      </span>
+                      {selectedInvoice.dealDiscount > 0 && (
+                        <span className="font-mono text-emerald-400 font-bold">
+                          -{formatPrice(selectedInvoice.dealDiscount)}
+                        </span>
+                      )}
+                    </div>
+                    {selectedInvoice.deal?.details && (
+                      <p className="text-[10px] text-gray-300 font-mono mt-1">
+                        {selectedInvoice.deal.details}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Items breakdown list */}
                 <div className="space-y-2">
                   <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider font-semibold">
@@ -412,9 +481,21 @@ export default function InvoicesView({
                     </span>
                   </div>
 
+                  {selectedInvoice.dealDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-medium">
+                      <span>
+                        Deal Discount ({selectedInvoice.dealName || "Promotion"}
+                        )
+                      </span>
+                      <span className="font-mono">
+                        -{formatPrice(selectedInvoice.dealDiscount)}
+                      </span>
+                    </div>
+                  )}
+
                   {selectedInvoice.disc > 0 && (
                     <div className="flex justify-between text-red-400">
-                      <span>Discount</span>
+                      <span>Checkout Discount</span>
                       <span className="font-mono">
                         -{formatPrice(selectedInvoice.disc)}
                       </span>
@@ -447,7 +528,7 @@ export default function InvoicesView({
                       C·M SCENTS
                     </h2>
                     <p className="text-[11px] text-neutral-500 uppercase tracking-widest mt-1">
-                      Premium Fragrances &amp; Accents
+                      Crafted to leave an impression
                     </p>
                     <p className="text-[10px] text-neutral-500 mt-1">
                       Isra Village, Hala Naka, Hyderabad, Sindh, Pakistan
@@ -595,8 +676,10 @@ export default function InvoicesView({
                       },
                       0,
                     );
+                    const dealDiscount = selectedInvoice.dealDiscount || 0;
                     const checkoutDiscount = selectedInvoice.disc || 0;
-                    const totalDiscount = itemDiscounts + checkoutDiscount;
+                    const totalDiscount =
+                      itemDiscounts + dealDiscount + checkoutDiscount;
 
                     return (
                       <div className="border-t border-dashed border-neutral-300 pt-4 space-y-2 text-xs text-neutral-600">
@@ -609,6 +692,18 @@ export default function InvoicesView({
                             PKR
                           </span>
                         </div>
+
+                        {dealDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-600 font-semibold">
+                            <span>
+                              Deal Discount (
+                              {selectedInvoice.dealName || "Promotion"})
+                            </span>
+                            <span>
+                              -{Math.round(dealDiscount).toLocaleString()} PKR
+                            </span>
+                          </div>
+                        )}
 
                         {itemDiscounts > 0 && (
                           <div className="flex justify-between text-red-500 font-semibold">
@@ -630,7 +725,7 @@ export default function InvoicesView({
                         )}
 
                         {totalDiscount > 0 && (
-                          <div className="flex justify-between text-red-600 font-bold bg-red-50 p-2 rounded-md border border-red-100">
+                          <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 p-2 rounded-md border border-emerald-100">
                             <span>Total Savings / Discount</span>
                             <span>
                               -{Math.round(totalDiscount).toLocaleString()} PKR
@@ -649,7 +744,7 @@ export default function InvoicesView({
                     );
                   })()}
 
-                  
+
 
                   {/* Fine Print Footer */}
                   <div className="text-center text-[10px] text-neutral-400 mt-8 pt-5 border-t border-dashed border-neutral-300 space-y-1">

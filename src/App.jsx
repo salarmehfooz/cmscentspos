@@ -32,6 +32,9 @@ import {
   setStoredNextProd,
   getStoredPassword,
   setStoredPassword,
+  getStoredDeals,
+  setStoredDeals,
+  INITIAL_DEALS,
   exportBackupData,
   importBackupData,
   INITIAL_PRODUCTS,
@@ -45,6 +48,8 @@ import {
   syncInvoices,
   syncSheetOrders,
   syncCounters,
+  syncDeals,
+  dbSaveDeals,
   dbSaveProduct,
   dbDeleteProduct,
   dbSaveExpense,
@@ -90,6 +95,7 @@ export default function App() {
   const [sheetOrders, setSheetOrders] = useState(getStoredSheetOrders);
   const [nextInv, setNextInv] = useState(getStoredNextInv);
   const [nextProd, setNextProd] = useState(getStoredNextProd);
+  const [deals, setDeals] = useState(getStoredDeals);
 
   const [dateStr, setDateStr] = useState("");
   const [backupFileContent, setBackupFileContent] = useState("");
@@ -120,9 +126,17 @@ export default function App() {
     setStoredNextProd(nextProd);
   }, [nextProd]);
 
+  useEffect(() => {
+    setStoredDeals(deals);
+  }, [deals]);
+
   // Establish Firestore real-time sync subscription and seed initial data if collections are empty
   useEffect(() => {
-    seedInitialDataIfEmpty(INITIAL_PRODUCTS, INITIAL_EXPENSES).then(() => {
+    seedInitialDataIfEmpty(
+      INITIAL_PRODUCTS,
+      INITIAL_EXPENSES,
+      INITIAL_DEALS,
+    ).then(() => {
       console.log("Firestore seeding check complete.");
     });
 
@@ -140,6 +154,12 @@ export default function App() {
 
     const unsubscribeSheetOrders = syncSheetOrders((dbSheetOrders) => {
       setSheetOrders(dbSheetOrders || []);
+    });
+
+    const unsubscribeDeals = syncDeals((dbDeals) => {
+      if (Array.isArray(dbDeals) && dbDeals.length > 0) {
+        setDeals(dbDeals);
+      }
     });
 
     const unsubscribeCounters = syncCounters((counters) => {
@@ -163,6 +183,7 @@ export default function App() {
       unsubscribeExpenses();
       unsubscribeInvoices();
       unsubscribeSheetOrders();
+      unsubscribeDeals();
       unsubscribeCounters();
       unsubscribePassword();
     };
@@ -281,6 +302,17 @@ export default function App() {
       await dbSaveCounters(nextInv, val);
     } catch (err) {
       console.error("Failed to save counters:", err);
+    }
+  };
+
+  const handleUpdateDeals = async (newDeals) => {
+    setDeals(newDeals);
+    setStoredDeals(newDeals);
+    try {
+      await dbSaveDeals(newDeals);
+    } catch (err) {
+      console.error("Failed to save deals to Firestore:", err);
+      showToast("Deals cloud sync error", "error");
     }
   };
 
@@ -556,6 +588,8 @@ export default function App() {
                 nextInv={nextInv}
                 onUpdateNextInv={handleUpdateNextInv}
                 onShowToast={showToast}
+                deals={deals}
+                onUpdateDeals={handleUpdateDeals}
               />
             )}
 
@@ -580,6 +614,7 @@ export default function App() {
                 invoices={invoices}
                 onDeleteInvoice={handleDeleteInvoice}
                 products={products}
+                deals={deals}
               />
             )}
 

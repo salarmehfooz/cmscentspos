@@ -7,9 +7,287 @@ const STORAGE_KEYS = {
   SHEET_ORDERS: "cms_pos_sheet_orders",
   DELETED_ORDERS: "cms_pos_deleted_orders",
   PASSWORD: "cms_pos_password",
+  DEALS: "cms_pos_deals",
+  SELECTED_DEAL: "cms_pos_selected_deal",
 };
 
 export const DEFAULT_PASSWORD = "1234";
+
+export const INITIAL_DEALS = [
+  {
+    id: "bundle-3-for-5000",
+    name: "3 for Rs. 5,000 Bundle",
+    code: "3FOR5000",
+    type: "bundle", // 'bundle' | 'bogo' | 'percentage' | 'fixed'
+    bundleQty: 3,
+    bundlePrice: 5000,
+    active: true,
+    description:
+      "Any 3 signature fragrances for PKR 5,000 (multiples supported, e.g. 6 for 10,000)",
+    badge: "3 for Rs. 5,000",
+    icon: "✨",
+  },
+  {
+    id: "b2g1-free",
+    name: "Buy 2 Get 1 Free (B2G1)",
+    code: "B2G1",
+    type: "bogo",
+    buyQty: 2,
+    getFreeQty: 1,
+    active: true,
+    description:
+      "Buy any 2 perfumes, get the 3rd perfume free (lowest priced item free)",
+    badge: "Buy 2 Get 1 Free",
+    icon: "🎁",
+  },
+  {
+    id: "storewide-20-off",
+    name: "20% Off Storewide Sale",
+    code: "SALE20",
+    type: "percentage",
+    discountPct: 20,
+    active: true,
+    description: "Flat 20% off on all signature fragrances across store",
+    badge: "Flat 20% OFF",
+    icon: "🏷️",
+  },
+  {
+    id: "duo-2-for-3500",
+    name: "2 for Rs. 3,500 Duo Deal",
+    code: "2FOR3500",
+    type: "bundle",
+    bundleQty: 2,
+    bundlePrice: 3500,
+    active: true,
+    description: "Any 2 signature fragrances for PKR 3,500",
+    badge: "2 for Rs. 3,500",
+    icon: "🔥",
+  },
+];
+
+export function getStoredDeals() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.DEALS);
+    if (!data) return INITIAL_DEALS;
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DEALS;
+  } catch (e) {
+    return INITIAL_DEALS;
+  }
+}
+
+export function setStoredDeals(deals) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.DEALS, JSON.stringify(deals));
+  } catch (e) {
+    console.error("Error writing deals to localStorage", e);
+  }
+}
+
+export function getStoredSelectedDeal() {
+  try {
+    return (
+      localStorage.getItem(STORAGE_KEYS.SELECTED_DEAL) || "bundle-3-for-5000"
+    );
+  } catch (e) {
+    return "bundle-3-for-5000";
+  }
+}
+
+export function setStoredSelectedDeal(dealId) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_DEAL, dealId || "");
+  } catch (e) {
+    console.error("Error writing selected deal to localStorage", e);
+  }
+}
+
+/**
+ * Calculates deal discounts based on cart items and selected deal
+ */
+export function calculateDealDiscount(cart = [], deal = null) {
+  if (!deal || !cart || cart.length === 0) {
+    return {
+      discount: 0,
+      applied: false,
+      savings: 0,
+      details: "",
+      bundlesCount: 0,
+      progress: null,
+    };
+  }
+
+  // Flatten cart into individual unit objects
+  const units = [];
+  cart.forEach((item) => {
+    for (let i = 0; i < (item.qty || 1); i++) {
+      units.push({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        originalPrice: item.originalPrice || item.price,
+        cost: item.cost,
+      });
+    }
+  });
+
+  const totalQty = units.length;
+  if (totalQty === 0) {
+    return {
+      discount: 0,
+      applied: false,
+      savings: 0,
+      details: "",
+      bundlesCount: 0,
+      progress: null,
+    };
+  }
+
+  if (deal.type === "bundle") {
+    const bQty = Number(deal.bundleQty) || 3;
+    const bPrice = Number(deal.bundlePrice) || 5000;
+    const bundlesCount = Math.floor(totalQty / bQty);
+
+    if (bundlesCount === 0) {
+      const remaining = bQty - totalQty;
+      return {
+        discount: 0,
+        applied: false,
+        savings: 0,
+        bundlesCount: 0,
+        progress: {
+          current: totalQty,
+          needed: bQty,
+          remaining,
+        },
+        details: `Add ${remaining} more item${remaining > 1 ? "s" : ""} to activate ${deal.name}`,
+      };
+    }
+
+    // Sort units descending by price so the customer gets the bundle deal applied on highest value
+    const sortedDesc = [...units].sort((a, b) => b.price - a.price);
+    const bundledUnitsCount = bundlesCount * bQty;
+    const bundledUnits = sortedDesc.slice(0, bundledUnitsCount);
+    const regularSum = bundledUnits.reduce((acc, u) => acc + u.price, 0);
+    const targetBundleCost = bundlesCount * bPrice;
+    const discount = Math.max(0, regularSum - targetBundleCost);
+
+    return {
+      discount,
+      applied: discount > 0,
+      savings: discount,
+      bundlesCount,
+      progress: {
+        current: totalQty,
+        needed: bQty,
+        remaining: 0,
+      },
+      details: `${bundlesCount}x ${deal.name} (${bundledUnitsCount} bottles for PKR ${targetBundleCost.toLocaleString()})`,
+      extraUnits: totalQty - bundledUnitsCount,
+    };
+  }
+
+  if (deal.type === "bogo") {
+    const buyQty = Number(deal.buyQty) || 2;
+    const getFreeQty = Number(deal.getFreeQty) || 1;
+    const groupSize = buyQty + getFreeQty;
+    const groupsCount = Math.floor(totalQty / groupSize);
+
+    if (groupsCount === 0) {
+      const remaining = groupSize - totalQty;
+      return {
+        discount: 0,
+        applied: false,
+        savings: 0,
+        bundlesCount: 0,
+        progress: {
+          current: totalQty,
+          needed: groupSize,
+          remaining,
+        },
+        details: `Add ${remaining} more item${remaining > 1 ? "s" : ""} for Buy ${buyQty} Get ${getFreeQty} Free`,
+      };
+    }
+
+    // Free items are lowest priced units
+    const sortedAsc = [...units].sort((a, b) => a.price - b.price);
+    const freeCount = groupsCount * getFreeQty;
+    const freeUnits = sortedAsc.slice(0, freeCount);
+    const discount = freeUnits.reduce((acc, u) => acc + u.price, 0);
+
+    return {
+      discount,
+      applied: discount > 0,
+      savings: discount,
+      bundlesCount: groupsCount,
+      progress: {
+        current: totalQty,
+        needed: groupSize,
+        remaining: 0,
+      },
+      details: `${freeCount} free bottle${freeCount > 1 ? "s" : ""} (Buy ${buyQty} Get ${getFreeQty} Free)`,
+    };
+  }
+
+  if (deal.type === "percentage") {
+    const pct = Number(deal.discountPct) || 0;
+    const subtotal = units.reduce((acc, u) => acc + u.price, 0);
+    const discount = Math.round(subtotal * (pct / 100));
+
+    return {
+      discount,
+      applied: discount > 0,
+      savings: discount,
+      bundlesCount: 1,
+      progress: null,
+      details: `${pct}% storewide discount applied`,
+    };
+  }
+
+  if (deal.type === "fixed") {
+    const fixedPkr = Number(deal.discountPkr) || 0;
+    const subtotal = units.reduce((acc, u) => acc + u.price, 0);
+    const discount = Math.min(subtotal, fixedPkr);
+
+    return {
+      discount,
+      applied: discount > 0,
+      savings: discount,
+      bundlesCount: 1,
+      progress: null,
+      details: `PKR ${fixedPkr.toLocaleString()} discount applied`,
+    };
+  }
+
+  return {
+    discount: 0,
+    applied: false,
+    savings: 0,
+    bundlesCount: 0,
+    progress: null,
+    details: "",
+  };
+}
+
+/**
+ * Finds the deal that yields the highest savings for the cart
+ */
+export function findBestDeal(cart = [], deals = []) {
+  if (!cart || cart.length === 0 || !deals || deals.length === 0) return null;
+  const activeDeals = deals.filter((d) => d.active);
+  let best = null;
+  let maxSavings = 0;
+
+  activeDeals.forEach((d) => {
+    const calc = calculateDealDiscount(cart, d);
+    if (calc.savings > maxSavings) {
+      maxSavings = calc.savings;
+      best = { deal: d, calc };
+    }
+  });
+
+  return best;
+}
 
 export function getStoredPassword() {
   try {
@@ -276,6 +554,7 @@ export function exportBackupData() {
     expenses: getStoredExpenses(),
     invoices: getStoredInvoices(),
     sheetOrders: getStoredSheetOrders(),
+    deals: getStoredDeals(),
     nextInv: getStoredNextInv(),
     nextProd: getStoredNextProd(),
     timestamp: new Date().toISOString(),
@@ -297,6 +576,9 @@ export function importBackupData(jsonString) {
     }
     if (parsed.sheetOrders && Array.isArray(parsed.sheetOrders)) {
       setStoredSheetOrders(parsed.sheetOrders);
+    }
+    if (parsed.deals && Array.isArray(parsed.deals)) {
+      setStoredDeals(parsed.deals);
     }
     if (typeof parsed.nextInv === "number") {
       setStoredNextInv(parsed.nextInv);

@@ -38,6 +38,7 @@ const invoicesCol = collection(db, "invoices");
 const sheetOrdersCol = collection(db, "sheetOrders");
 const configDocRef = doc(db, "config", "counters");
 const securityDocRef = doc(db, "config", "security");
+const dealsDocRef = doc(db, "config", "deals");
 
 /**
  * Standard error handler for Firestore operations
@@ -266,6 +267,38 @@ export async function dbSavePassword(password) {
 }
 
 /**
+ * Sync Deals in real-time from Firebase
+ */
+export function syncDeals(onUpdate, onError) {
+  return onSnapshot(
+    dealsDocRef,
+    (docSnap) => {
+      if (docSnap.exists() && docSnap.data().items) {
+        onUpdate(docSnap.data().items);
+      }
+    },
+    (err) => {
+      console.error("Firestore syncDeals error:", err);
+      if (onError) onError(err);
+    },
+  );
+}
+
+/**
+ * Save / Update System Deals list in Firebase
+ */
+export async function dbSaveDeals(deals) {
+  await setDoc(
+    dealsDocRef,
+    {
+      items: deals,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
+/**
  * Batch upload / restore backup data to Firestore
  */
 export async function dbImportBackup(backupObj) {
@@ -304,8 +337,26 @@ export async function dbImportBackup(backupObj) {
 /**
  * Seeds initial database values if Firestore collections are completely empty
  */
-export async function seedInitialDataIfEmpty(initialProducts, initialExpenses) {
+export async function seedInitialDataIfEmpty(
+  initialProducts,
+  initialExpenses,
+  initialDeals = [],
+) {
   try {
+    // Check and seed deals configuration if it doesn't exist yet
+    const dealsSnap = await getDoc(dealsDocRef);
+    if (!dealsSnap.exists() && initialDeals && initialDeals.length > 0) {
+      console.log("Seeding initial promotional deals into Firestore...");
+      await setDoc(
+        dealsDocRef,
+        {
+          items: initialDeals,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    }
+
     const countersSnap = await getDoc(configDocRef);
     const countersData = countersSnap.exists() ? countersSnap.data() : null;
 

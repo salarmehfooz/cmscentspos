@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -672,6 +674,18 @@ export default function SheetOrdersView({
 
     const finalTotal =
       parseFloat(order.total) > 0 ? parseFloat(order.total) : orderSubtotal;
+    const diffDiscount = Math.max(0, orderSubtotal - finalTotal);
+    const notesLower = (order.notes || "").toLowerCase();
+    const is3for5k =
+      notesLower.includes("3 for") ||
+      notesLower.includes("5000") ||
+      (invoiceItems.reduce((acc, i) => acc + i.qty, 0) === 3 &&
+        finalTotal === 5000);
+    const dealName = is3for5k
+      ? "3 for Rs. 5,000 Bundle"
+      : diffDiscount > 0
+        ? "Website Promotional Deal"
+        : null;
 
     const newInvoice = {
       id: invoiceId,
@@ -683,11 +697,14 @@ export default function SheetOrdersView({
         `Google Sheet Order ID: ${order.orderId || order.id}. ${order.notes || ""}`.trim(),
       method: order.paymentMethod || "Cash on Delivery",
       items: invoiceItems,
+      dealName: dealName,
+      dealDiscount: diffDiscount,
       sub: orderSubtotal,
       disc: 0,
-      total: orderSubtotal,
+      totalDiscount: diffDiscount,
+      total: finalTotal,
       cogs: totalCogs,
-      profit: orderSubtotal - totalCogs,
+      profit: finalTotal - totalCogs,
     };
 
     // Save Invoice & Increment Counter

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -9,8 +10,18 @@ import {
   Settings,
   Globe,
   RefreshCw,
+  Sparkles,
+  Tag,
+  Zap,
 } from "lucide-react";
 import ReceiptModal from "./ReceiptModal";
+import DealsModal from "./DealsModal";
+import {
+  calculateDealDiscount,
+  findBestDeal,
+  getStoredSelectedDeal,
+  setStoredSelectedDeal,
+} from "../storage";
 
 export default function POSView({
   products,
@@ -19,6 +30,8 @@ export default function POSView({
   nextInv,
   onUpdateNextInv,
   onShowToast,
+  deals = [],
+  onUpdateDeals,
 }) {
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState("All");
@@ -26,8 +39,18 @@ export default function POSView({
   const [customerName, setCustomerName] = useState("");
   const [discountPkr, setDiscountPkr] = useState("");
   const [discountPct, setDiscountPct] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Cash On Delivery");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [completedInvoice, setCompletedInvoice] = useState(null);
+
+  // Deals selection state
+  const [selectedDealId, setSelectedDealId] = useState(() => {
+    return getStoredSelectedDeal();
+  });
+  const [isDealsModalOpen, setIsDealsModalOpen] = useState(false);
+
+  useEffect(() => {
+    setStoredSelectedDeal(selectedDealId);
+  }, [selectedDealId]);
 
   // Google Sheets integration state
   const [syncToSheets, setSyncToSheets] = useState(() => {
@@ -88,19 +111,79 @@ export default function POSView({
     });
   }, [products, selectedCat, search]);
 
+  // Cart & Deal calculations
+  const dealResult = useMemo(() => {
+    if (selectedDealId === "none" || !cart || cart.length === 0) {
+      return {
+        deal: null,
+        calc: {
+          discount: 0,
+          applied: false,
+          savings: 0,
+          details: "",
+          bundlesCount: 0,
+          progress: null,
+        },
+      };
+    }
+
+    if (selectedDealId === "auto") {
+      const best = findBestDeal(cart, deals);
+      if (best) {
+        return { deal: best.deal, calc: best.calc, isAuto: true };
+      }
+      return {
+        deal: null,
+        calc: {
+          discount: 0,
+          applied: false,
+          savings: 0,
+          details: "",
+          bundlesCount: 0,
+          progress: null,
+        },
+        isAuto: true,
+      };
+    }
+
+    const currentDeal = deals.find((d) => d.id === selectedDealId);
+    if (!currentDeal) {
+      return {
+        deal: null,
+        calc: {
+          discount: 0,
+          applied: false,
+          savings: 0,
+          details: "",
+          bundlesCount: 0,
+          progress: null,
+        },
+      };
+    }
+
+    const calc = calculateDealDiscount(cart, currentDeal);
+    return { deal: currentDeal, calc, isAuto: false };
+  }, [cart, selectedDealId, deals]);
+
+  const dealDiscount = dealResult.calc.discount || 0;
+  const appliedDeal = dealResult.calc.applied ? dealResult.deal : null;
+
   // Cart calculations
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   }, [cart]);
 
+  // Net subtotal after promotional website deal
+  const subtotalAfterDeal = Math.max(0, subtotal - dealDiscount);
+
   const parsedDiscount = useMemo(() => {
     const d = parseFloat(discountPkr) || 0;
-    return Math.min(d, subtotal);
-  }, [discountPkr, subtotal]);
+    return Math.min(d, subtotalAfterDeal);
+  }, [discountPkr, subtotalAfterDeal]);
 
   const total = useMemo(() => {
-    return Math.max(0, subtotal - parsedDiscount);
-  }, [subtotal, parsedDiscount]);
+    return Math.max(0, subtotalAfterDeal - parsedDiscount);
+  }, [subtotalAfterDeal, parsedDiscount]);
 
   const cartTotalItems = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.qty, 0);
@@ -108,7 +191,7 @@ export default function POSView({
 
   // Sync discounts (PKR vs Percentage)
   const handleDiscountChange = (val, type) => {
-    if (subtotal === 0) {
+    if (subtotalAfterDeal === 0) {
       setDiscountPkr("");
       setDiscountPct("");
       return;
@@ -116,14 +199,14 @@ export default function POSView({
     if (type === "pkr") {
       setDiscountPkr(val);
       const numVal = parseFloat(val) || 0;
-      const pct = (numVal / subtotal) * 100;
+      const pct = (numVal / subtotalAfterDeal) * 100;
       setDiscountPct(
         numVal ? Math.min(100, Number(pct.toFixed(1))).toString() : "",
       );
     } else {
       setDiscountPct(val);
       const numVal = parseFloat(val) || 0;
-      const pkr = (numVal / 100) * subtotal;
+      const pkr = (numVal / 100) * subtotalAfterDeal;
       setDiscountPkr(numVal ? Math.round(pkr).toString() : "");
     }
   };
@@ -239,8 +322,20 @@ export default function POSView({
       notes: customerNote.trim() || "None",
       method: paymentMethod,
       items: [...cart],
+      deal: appliedDeal
+        ? {
+            id: appliedDeal.id,
+            name: appliedDeal.name,
+            badge: appliedDeal.badge,
+            type: appliedDeal.type,
+            details: dealResult.calc.details,
+          }
+        : null,
+      dealName: appliedDeal ? appliedDeal.name : null,
+      dealDiscount: dealDiscount,
       sub: subtotal,
       disc: parsedDiscount,
+      totalDiscount: dealDiscount + parsedDiscount,
       total: total,
       cogs: totalCogs,
       profit: total - totalCogs,
@@ -266,15 +361,25 @@ export default function POSView({
     // If sync with Google Sheets is enabled, POST to the web app URL
     if (syncToSheets && sheetScriptUrl.trim()) {
       try {
+        const dealAnnotation =
+          appliedDeal && dealDiscount > 0
+            ? ` [Deal: ${appliedDeal.name} (-PKR ${dealDiscount.toLocaleString()})]`
+            : "";
+        const dealNotes =
+          appliedDeal && dealDiscount > 0 ? `Deal: ${appliedDeal.name} | ` : "";
+
         const orderData = {
           name: customerName.trim() || "POS Walk-in",
           phone: customerPhone.trim() || "None",
           city: customerCity || "POS Store",
           address: customerAddress.trim() || "POS Counter Checkout",
-          products: cart.map((item) => `${item.name} (${item.qty})`).join(", "),
+          products:
+            cart.map((item) => `${item.name} (${item.qty})`).join(", ") +
+            dealAnnotation,
           total: total,
           payment: paymentMethod + " (POS)",
-          note: customerNote.trim() || `POS-invoice: ${invoiceId}`,
+          note:
+            dealNotes + (customerNote.trim() || `POS-invoice: ${invoiceId}`),
         };
 
         // Send as plain text to avoid CORS preflight options blocks in Google Sheets
@@ -318,6 +423,64 @@ export default function POSView({
     <div className="flex-1 flex flex-col md:flex-row md:h-[calc(100vh-4rem)] md:overflow-hidden bg-[#0A0A0D]">
       {/* Product Selection side */}
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto gap-4 md:gap-6 min-w-0">
+        {/* Promotional Website Deals Selector Bar */}
+        <div className="bg-[#181820] border border-[#CFB050]/20 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-black/40 bg-gradient-to-r from-[#181820] via-[#1a1922] to-[#1c1a16]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#CFB050]/15 border border-[#CFB050]/30 flex items-center justify-center text-[#CFB050] flex-shrink-0 shadow-inner">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-display font-bold text-white tracking-wide">
+                  Active Website Promotion
+                </span>
+                <span className="text-[10px] text-[#CFB050] font-mono font-bold bg-[#CFB050]/10 border border-[#CFB050]/20 px-2 py-0.5 rounded-md">
+                  cmscents.com
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-0.5 font-sans">
+                {selectedDealId === "auto"
+                  ? "⚡ Auto-optimizing best website discount for active cart"
+                  : selectedDealId === "none"
+                    ? "Standard individual pricing without promotional deals"
+                    : deals.find((d) => d.id === selectedDealId)?.description ||
+                      "Promotional deal applied to cart & invoice"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch sm:self-auto">
+            <select
+              value={selectedDealId}
+              onChange={(e) => setSelectedDealId(e.target.value)}
+              className="bg-[#111116] border border-white/10 focus:border-[#CFB050] rounded-xl px-3 py-2 text-xs text-white outline-none font-mono cursor-pointer flex-1 sm:flex-none font-medium transition-all"
+            >
+              <option value="bundle-3-for-5000">
+                ✨ 3 for Rs. 5,000 Bundle (Website Offer)
+              </option>
+              <option value="auto">⚡ Auto-Apply Best Deal</option>
+              {deals
+                .filter((d) => d.id !== "bundle-3-for-5000")
+                .map((d) => (
+                  <option key={d.id} value={d.id} disabled={!d.active}>
+                    {d.icon || "🏷️"} {d.name} {!d.active ? "(Inactive)" : ""}
+                  </option>
+                ))}
+              <option value="none">🚫 No Deal (Regular Rates)</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setIsDealsModalOpen(true)}
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#CFB050]/40 text-gray-300 hover:text-white rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer flex-shrink-0"
+              title="Configure promotional deals"
+            >
+              <Tag size={13} className="text-[#CFB050]" />
+              <span className="font-display font-medium">Deals</span>
+            </button>
+          </div>
+        </div>
+
         {/* Search and Filters */}
         <div className="flex flex-col gap-4">
           <div className="relative">
@@ -590,6 +753,60 @@ export default function POSView({
           </AnimatePresence>
         </div>
 
+        {/* Deal Status Banner in Active Cart */}
+        <div className="px-4 pt-2.5 pb-1">
+          {dealResult.calc.applied ? (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-[#CFB050]/10 border border-[#CFB050]/30 rounded-xl p-2.5 flex items-center justify-between text-xs shadow-sm"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base flex-shrink-0">🎉</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-[#CFB050] text-[11px] truncate font-display">
+                      {appliedDeal?.name || "Bundle Deal"}
+                    </span>
+                    <span className="text-[8px] bg-[#CFB050] text-black font-mono font-bold px-1.5 py-0.5 rounded uppercase">
+                      DEAL ACTIVE
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 font-mono truncate mt-0.5">
+                    {dealResult.calc.details}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-400 whitespace-nowrap pl-2">
+                -{formatPrice(dealDiscount)}
+              </span>
+            </motion.div>
+          ) : dealResult.calc.progress &&
+            dealResult.calc.progress.remaining > 0 ? (
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-2.5 flex items-center justify-between text-[11px] text-gray-400">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[#CFB050] flex-shrink-0">✨</span>
+                <span className="truncate">
+                  Add{" "}
+                  <strong className="text-white font-mono">
+                    {dealResult.calc.progress.remaining}
+                  </strong>{" "}
+                  more bottle{dealResult.calc.progress.remaining > 1 ? "s" : ""}{" "}
+                  to activate{" "}
+                  <strong className="text-[#CFB050]">
+                    {dealResult.deal?.name}
+                  </strong>
+                  !
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-gray-500 whitespace-nowrap pl-1">
+                {dealResult.calc.progress.current}/
+                {dealResult.calc.progress.needed}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
         {/* Cart Items List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           <AnimatePresence initial={false}>
@@ -655,6 +872,23 @@ export default function POSView({
               </span>
             </div>
 
+            {dealDiscount > 0 && (
+              <div className="flex justify-between text-emerald-400 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 font-medium">
+                <span className="flex items-center gap-1.5 truncate">
+                  <Sparkles
+                    size={12}
+                    className="text-[#CFB050] flex-shrink-0"
+                  />
+                  <span className="truncate">
+                    Deal ({appliedDeal?.name || "Website Deal"})
+                  </span>
+                </span>
+                <span className="font-mono font-bold whitespace-nowrap pl-2">
+                  -{formatPrice(dealDiscount)}
+                </span>
+              </div>
+            )}
+
             {/* Discounts inputs */}
             <div className="grid grid-cols-2 gap-2 pt-1 pb-1">
               <div className="relative">
@@ -663,8 +897,8 @@ export default function POSView({
                 </span>
                 <input
                   type="number"
-                  placeholder="Disc"
-                  disabled={subtotal === 0}
+                  placeholder="Extra Disc"
+                  disabled={subtotalAfterDeal === 0}
                   value={discountPkr}
                   onChange={(e) => handleDiscountChange(e.target.value, "pkr")}
                   className="w-full bg-[#111116] border border-white/5 focus:border-[#CFB050] rounded-lg pl-8 pr-1.5 py-1.5 text-white placeholder-gray-600 text-[11px] outline-none font-mono"
@@ -676,8 +910,8 @@ export default function POSView({
                 </span>
                 <input
                   type="number"
-                  placeholder="Disc %"
-                  disabled={subtotal === 0}
+                  placeholder="Extra %"
+                  disabled={subtotalAfterDeal === 0}
                   min={0}
                   max={100}
                   value={discountPct}
@@ -689,7 +923,7 @@ export default function POSView({
 
             {parsedDiscount > 0 && (
               <div className="flex justify-between text-red-400">
-                <span>Total Discount</span>
+                <span>Extra Discount</span>
                 <span className="font-mono">
                   -{formatPrice(parsedDiscount)}
                 </span>
@@ -714,7 +948,7 @@ export default function POSView({
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="w-full bg-[#111116] border border-white/5 focus:border-[#CFB050] rounded-xl px-3 py-2 text-white text-xs outline-none cursor-pointer"
             >
-              <option value="Cash">💵 Cash On Delivery</option>
+              <option value="Cash">💵 Cash</option>
               <option value="Card">💳 Credit / Debit Card</option>
               <option value="Bank transfer">🏦 Direct Bank Transfer</option>
               <option value="JazzCash">📱 JazzCash Wallet</option>
@@ -755,6 +989,15 @@ export default function POSView({
           onClose={() => setCompletedInvoice(null)}
         />
       )}
+
+      {/* Website Deals Manager Modal */}
+      <DealsModal
+        isOpen={isDealsModalOpen}
+        onClose={() => setIsDealsModalOpen(false)}
+        deals={deals}
+        onUpdateDeals={onUpdateDeals}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 }

@@ -117,6 +117,46 @@
         "status": { "type": "string" },
         "total": { "type": "number" }
       }
+    },
+    "Deal": {
+      "title": "Deal",
+      "description": "Website promotional deals and bundle offers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Display title of deal" },
+        "code": { "type": "string", "description": "Short code or slug" },
+        "type": {
+          "type": "string",
+          "description": "bundle, bogo, percentage, or fixed"
+        },
+        "bundleQty": {
+          "type": "number",
+          "description": "Items required for bundle"
+        },
+        "bundlePrice": {
+          "type": "number",
+          "description": "Total price for the bundle in PKR"
+        },
+        "discountPct": {
+          "type": "number",
+          "description": "Percentage discount if type is percentage"
+        },
+        "discountPkr": {
+          "type": "number",
+          "description": "Flat PKR discount if type is fixed"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether deal is enabled"
+        },
+        "description": {
+          "type": "string",
+          "description": "Explanation of deal offer"
+        },
+        "badge": { "type": "string", "description": "Visual label" }
+      },
+      "required": ["id", "name", "type", "active"]
     }
   },
   "firestore": {
@@ -143,6 +183,10 @@
     "/config/security": {
       "schema": "Security",
       "description": "System access password settings"
+    },
+    "/config/deals": {
+      "schema": "Deal",
+      "description": "Promotional offers and bundle deals"
     }
   }
 }
